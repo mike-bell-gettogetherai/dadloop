@@ -27,3 +27,5 @@ Then set the world to make it interesting first, in `core/tools.py`:
 WORLD = {"propane": "empty", "hardware_store_open": False,
          "weather_f": 58, "pantry_has_veggies": False, "budget": 40}
 ```
+
+- [Handoff brief](HANDOFF.md): start here if you are picking the project up cold

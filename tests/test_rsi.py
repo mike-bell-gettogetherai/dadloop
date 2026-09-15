@@ -1,5 +1,5 @@
 """Author: Swami Chandrasekaran
-Last Modified: 2026-08-15
+Last Modified: 2026-09-04
 Purpose: Tests harness-level RSI — grounded scoring, enforced walls, replay, and the human gate.
 
 Recursive self-improvement is the one feature here where a passing-but-wrong
@@ -167,6 +167,35 @@ def test_replay_is_honest_when_it_cannot_tell():
     print("PASS: replay reports inconclusive instead of manufacturing a win")
 
 
+def test_replay_never_writes_to_the_household_journal():
+    """A replay is a rehearsal. It must not show up on Mom's Console as a burst
+    of turns nobody asked for. Found in review: replay agents built with a bare
+    AgentLoop() inherit the default memory and therefore the real journal, so
+    one `--improve` run injected eight fake turns into the household record."""
+    from dadloop.core import journal as J
+    household = Path(tempfile.mkdtemp()) / "household"
+    real = AgentLoop(Context(memory=SemanticMemory(household)))
+    real._client = _stalling_client(1)
+    real.turn("a real turn")
+    before = real.journal.path.read_bytes()
+
+    def make_agent():
+        # deliberately the naive form callers actually write: no journal=False
+        a = AgentLoop(Context(memory=SemanticMemory(household)))
+        a._client = _stalling_client(1)
+        return a
+
+    body = "---\nname: grilling\ndescription: x\n---\n- Same body both ways."
+    prop = il.Proposal(skill="grilling",
+                       before_score=SkillScore("grilling", 5, 0.5, 0.5, 0.01),
+                       old_body=body, new_body=body)
+    il.replay_proposal(prop, make_agent, ["grill one", "grill two", "grill three"])
+
+    assert real.journal.path.read_bytes() == before, \
+        "replay agents wrote into the household journal; rehearsals are not turns"
+    print("PASS: replay leaves the household journal byte-identical")
+
+
 def test_promotion_is_gated_and_walled():
     """Promotion writes the file, keeps a backup, reloads the catalog — and
     refuses a proposal whose target escapes the skills directory."""
@@ -246,5 +275,6 @@ if __name__ == "__main__":
     test_replay_rewards_behaviour_not_prose()
     test_replay_is_honest_when_it_cannot_tell()
     test_promotion_is_gated_and_walled()
+    test_replay_never_writes_to_the_household_journal()
     test_pick_target_waits_for_evidence()
     test_held_streak_counts_and_resets_on_promote()

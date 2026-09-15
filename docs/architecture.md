@@ -1,6 +1,6 @@
 <!--
 Author: Swami Chandrasekaran
-Last Modified: 2026-07-12
+Last Modified: 2026-09-05
 Purpose: Detailed architecture of the harness components.
 -->
 
@@ -22,6 +22,7 @@ asks for, feeds results back, manages memory across turns, and knows when to sto
 | memory | `core/memory.py` |
 | tracing | `core/trace.py` |
 | plan tracking | `core/plan.py` |
+| the shared house | `house.py` (not core; the single-process path never imports it) |
 
 ## Tools
 
@@ -48,9 +49,9 @@ skills. See [writing skills](skills.md).
 
 Every proposed tool call passes through `Mom` before it executes. She returns a verdict:
 
-- `allow` — run as-is
-- `deny` — block it; the model sees the reason instead of a result
-- `modify` — run it with rewritten arguments (e.g. cap the spend)
+- `allow`: run as-is
+- `deny`: block it; the model sees the reason instead of a result
+- `modify`: run it with rewritten arguments (e.g. cap the spend)
 
 Two policies ship by default: a seasonal thermostat cap (74F cooling, 70F heating, chosen
 by the calendar) and a $100 ceiling on any single purchase. Policies are plain callables;
@@ -61,13 +62,13 @@ cannot inform later sessions.
 
 ### Constitution
 
-Mom also enforces Dad's constitution — values, a thinking process, and voice rules. The
+Mom also enforces Dad's constitution: values, a thinking process, and voice rules. The
 voice rules are mechanical, not advisory: replies over five sentences are trimmed before
 they reach the user, but a line carrying genuine acknowledgment is protected from the cut
 rather than amputated for coming last.
 
 This runs through `Mom.enforce_voice()`, which is deliberately separate from
-`Mom.review()`. `review()` is authority over an action — it can block or rewrite a tool
+`Mom.review()`. `review()` is authority over an action; it can block or rewrite a tool
 call, it fires only on a real threshold, and it emits a `controller` event the UI surfaces.
 `enforce_voice()` is editing, emits nothing, and is invisible by design. Keeping them
 apart is what stops a routine style pass from looking like a veto.
@@ -107,6 +108,25 @@ marked unplanned, so drift between intent and behavior stays visible.
 | `f5` | clear the canvas |
 | `ctrl+q` | quit |
 
+`f6` opens the self-improvement screen. In a joined TUI it declines and points
+at `dadloop --improve` on the house's machine, since the loop rewrites Dad's
+playbooks and belongs to the process that owns him.
+
+## The shared house
+
+`dadloop --serve` runs one `AgentLoop` behind a TCP socket (JSON lines,
+stdlib only); `dadloop` on the same machine finds it through `house.json`
+beside the memory and joins; `dadloop --join host:port` joins from elsewhere.
+Turns queue and run one at a time on one thread, so the journal keeps a single
+writer and Mom answers one person at a time. Every event fans out to every
+client tagged with who caused it, and memory travels to clients as a snapshot,
+so a joined TUI reads nothing from disk. `AgentLoop.turn()` takes `user`, which
+lands on `turn_start`; when the house sets `shared`, each user message is
+prefixed with its speaker and the system prompt carries the session record
+derived by `stages.session_ledger`, which is how Dad tells the two apart and
+catches a repeated ask without relying on his transcript. Details and the wire
+protocol: [collaboration-spec.md](collaboration-spec.md).
+
 Function keys, not ctrl-combos. Textual's `Input` widget claims `ctrl+a`, `ctrl+e`,
 `ctrl+c` and others for line editing, and a focused input wins over app-level
-bindings — so a `ctrl+e` shortcut is silently dead exactly when the user is typing.
+bindings, so a `ctrl+e` shortcut is silently dead exactly when the user is typing.
