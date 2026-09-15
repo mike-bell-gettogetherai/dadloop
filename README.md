@@ -26,7 +26,12 @@ cp .env.example .env    # add your key to this file
 dadloop                   # terminal UI
 dadloop --repl            # plain REPL
 dadloop --improve         # run the self-improvement loop from the command line
-python -m dadloop.demos   # five scripted scenarios
+dadloop --console         # serve Mom's Console in a browser
+dadloop --as priya        # a second terminal: joins the first one's Dad, as priya
+dadloop --join host:port  # from another machine
+dadloop --serve           # a house with no terminal of its own
+dadloop --solo            # single-user, no house
+python -m dadloop.demos   # six scripted scenarios, the sixth is two people in one house
 ```
 
 `ctrl+q` quits. Every other key is shown in the footer.
@@ -74,7 +79,7 @@ Every tool is listed in [docs/architecture.md](docs/architecture.md); every skil
 
 ## Dad, and the constitution Mom holds him to
 
-Dad is not a persona bolted on for charm. He runs on a written constitution, injected every turn, sixteen rules in four parts:
+Dad runs on a written constitution, injected every turn, sixteen rules in four parts:
 
 - **Grounding**: who he is, where home is, and what today's date and time actually are, so "tonight" and "this weekend" resolve to something real.
 - **Values**: steady and clever; say what's true, not what's easy to hear; provide and do, don't lecture.
@@ -95,7 +100,7 @@ Governance is not a disclaimer in the system prompt. It is a layer above the mod
 
 ## Self-improvement, with the limits kept in view
 
-An agent harness that can rewrite itself is either the most useful thing here or the most dangerous, depending entirely on what it is allowed to touch and who gets the final say. dadloop takes the honest version: a real loop that can improve Dad's playbooks, explicit walls it cannot cross, and a human at the gate.
+A harness that can rewrite itself is only as trustworthy as the walls around what it's allowed to touch and who gets the final say. dadloop's version: a real loop that improves Dad's playbooks, explicit walls it cannot cross, and a human at the gate.
 
 Here is the whole idea. Dad's skills are Markdown procedures, the part of him that is editable without retraining. Every turn already records things the model cannot fake: how much of its own stated plan it finished, how many tool calls errored, whether Mom had to veto, what it cost. The loop scores each skill from *those* signals, not from "did the answer read well." A skill that keeps leaving its plan half-done scores low. One that reliably finishes scores high. It refuses to judge a skill at all until it has seen it enough times, so a single bad turn can't condemn a playbook.
 
@@ -119,9 +124,89 @@ You can watch the whole thing run. Press `F6` on the work surface, or run `dadlo
 <img src="docs/tui-improve.png" alt="The self-improvement loop, mid-run" width="40%">
 </p>
 
+## Mom's Console
+
+The TUI is where Dad works. The console is where Mom watches. It is a separate
+web app in [console/](console/) that reads the household's files and nothing
+else, so it can never affect a turn it is observing.
+
+<p align="center">
+<img src="docs/moms-console.png" alt="Mom's Console" width="80%">
+</p>
+
+Every turn now leaves a durable record. dadloop writes an append-only journal
+beside each household's memory, one line per event, and on top of that it derives
+business-level state: what stage the turn is in, what constraint just closed a
+door, what got traded away, and how it ended. All of it is derived from
+observable facts, never asked of the model, which is the same rule the
+self-improvement scorer follows. Click any milestone on the console and it names
+the exact event it came from.
+
+```bash
+pip install -e ".[console]"
+dadloop --console        # then open http://127.0.0.1:8765
+```
+
+The house view maps rooms to tools, so a tool call is a room lighting up and a
+blocking fact turns it red. Because the journal is append-only, every turn
+replays: pick one and play, step, or scrub it. The household ledger gives the
+memory files the room the TUI rail cannot afford, all six categories, not just
+the readable four. `usage` and `outcomes` are the harness's own telemetry
+(skill loads, the scoring data self-improvement runs on) rather than
+something written in plain language, so each gets a translated line by
+default, with a raw toggle on the card for the record exactly as it sits on
+disk.
+
+<p align="center">
+<img src="docs/ledger-outcomes.png" alt="Household Ledger, the outcomes category translated into plain sentences" width="55%">
+</p>
+
+Full design in [docs/observability-spec.md](docs/observability-spec.md).
+
+## Two people, one Dad
+
+A family shares one Dad. The first person to run `dadloop` opens the house;
+anyone else who runs `dadloop` on that machine joins the same session (or
+`dadloop --join host:port` from another machine). Nothing to start, nothing to
+configure: `dadloop`, then `dadloop --as priya` in another terminal, and you
+are both talking to the same Dad. `dadloop --serve` runs a house with no
+terminal of its own, for when it should outlive whoever opened it. Everyone is in one
+conversation, with one memory, one journal and one Mom, and Dad knows who
+asked for what: on every turn he is shown the session's record, derived from
+the journal, of who asked what and what came of it. Ask him for the cookout
+plan after someone else already did and he tells you who handled it and what
+was found, instead of doing it again.
+
+When you sit down, the TUI shows what happened in the house before you got
+there: each earlier ask by name, the facts Dad found (as milestones, not a
+summary), and his answer. When the other person asks something while you are
+there, their turn draws on your canvas the same way yours does, and your prompt
+stays open. If you both ask at once, Dad takes the requests in order and the
+status line says whose he is finishing first.
+
+This works mid-turn too. If Dad is working a multi-step request and the
+other person knows something that changes it, they can hand it to him right
+then, and it changes his answer before he gives it, not after. Miss that
+window and it just becomes the next ordinary question instead of getting
+lost.
+
+<p align="center">
+<img src="docs/tui-mid-turn-fact.png" alt="A second person's fact landing mid-turn, before Dad answers" width="90%">
+</p>
+
+Alone, `dadloop` looks and works exactly as it always did; the house is just
+there for whoever comes next. `--solo` runs with no house at all. Mom's Console is unchanged too, except that the
+conversation now shows names.
+
+<p align="center">
+<img src="docs/tui-shared-house-live.png" alt="one person's turn drawing live in another's TUI" width="90%">
+</p>
+
+Design and the wire protocol are in [docs/collaboration-spec.md](docs/collaboration-spec.md).
+
 ## The work surface
 
-The TUI is where the harness shows its work. It is the work surface. Any part of a turn is auditable without leaving it.
+The TUI is the work surface: every part of a turn is visible without leaving it.
 
 It opens on a launch screen that is also the first prompt. Type your question there and press Enter, and it carries straight into the work surface and starts the turn. Escape skips it; `DADLOOP_NO_LAUNCH=1` turns it off for good.
 
@@ -158,15 +243,26 @@ The cookout is one shape. Here are the others.
 
 **A job that spans sessions.** Ask for 78 degrees in July. Governance denies it, and the blocked attempt is filed anyway. Come back tomorrow, ask about something else, and it surfaces unprompted. Nothing that matters in domain work finishes in one sitting.
 
-**Being overruled.** *"Can we just get the nice grill? It's like $400."* Dad does not get the final word. The spend cap runs before the tool executes, so the call is rewritten on the way out no matter what he intended.
+**Being overruled.** *"Can we just get the nice grill? It's like $400."* The spend cap runs before the tool executes, so the call gets rewritten on the way out no matter what Dad intended.
 
 ## What's new
+
+**Two people, one Dad.** `dadloop`, then `dadloop` from any other terminal,
+puts two family members in one conversation with one Dad. Every turn
+is attributed, the other person's work draws live on your canvas, a late joiner
+gets the house's record as milestones by name, and Dad is shown that record
+every turn so he catches a repeated ask instead of redoing it. A second person
+can also hand Dad a fact while he's mid-turn, not just wait their turn, and it
+changes his answer before he gives it. The session is
+the unit: same machine or two machines, the joined TUI is the same. One new
+file, a few small additions in the core, single-user mode untouched. See the
+section above.
 
 **Dad can improve his own playbooks, and show you the limits.** A real self-improvement loop scores each skill from things the model can't fake (how much of its plan it finished, tool errors, Mom's vetoes, cost), drafts a rewrite when one has gone stale, and replays it against past cases to prove it actually behaves better. What it can't touch is walled off in code: the constitution, Mom's policies, the tools, the loop itself, and the promotion decision. Nothing ships without you. Press `F6` to watch it run and hold the gate, or use `dadloop --improve` from the command line. The rail flags a skill the moment it's worth improving.
 
 **A launch screen you can start from.** dadloop opens on a landing page rather than an empty canvas, with a wordmark, a headline, and a sample turn showing a real constraint being reconciled. The prompt on it is live. Type the first thing you want worked out, press Enter, and it carries into the work surface and runs. Escape skips it; `DADLOOP_NO_LAUNCH=1` turns it off.
 
-**Every reply says what it did.** Dad's answer now carries an `ACTION TAKEN` line above it listing checks run, skills assembled, and any call Mom blocked or rewrote. His reply says what he concluded. This says what the harness actually did on your behalf, which for something that can spend money and set the thermostat deserves its own line.
+**Every reply says what it did.** Dad's answer now carries an `ACTION TAKEN` line above it: checks run, skills assembled, any call Mom blocked or rewrote. His reply is his conclusion; the action line is the record of what actually happened, which matters for something that can spend money and set the thermostat.
 
 **The rail keeps score across sessions.** Three panels now. **Accomplishments** covers calls settled, lessons learned, and problems carried forward. **Top skills** is a ranked bar chart of which playbooks this household actually reaches for. **Skill health** is a grounded read on which playbooks are working and which have become worth a rewrite. Skill loads are written to disk, so the ranking describes months of use rather than the last ten minutes.
 
@@ -183,8 +279,11 @@ The cookout is one shape. Here are the others.
 ## Documentation
 
 - [Architecture](docs/architecture.md): the loop, tools, skills, governance, memory, tracing
+- [Observability spec](docs/observability-spec.md): the turn journal, the stage machine, and Mom's Console
+- [Collaboration spec](docs/collaboration-spec.md): two people, one Dad; the house, the client, the wire protocol
 - [Writing skills](docs/skills.md): how to add one, and how they compose
 - [Contributing](docs/contributing.md): tests, lint, adding tools and policies
+- [Changelog](CHANGELOG.md): what shipped, by version
 
 ## Troubleshooting
 
