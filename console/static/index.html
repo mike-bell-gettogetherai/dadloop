@@ -1,0 +1,332 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Mom's Console · dadloop</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,700;1,500&family=Poppins:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&family=Silkscreen:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --cream:#f7f1ea; --paper:#fdfaf6; --ink:#16304f; --ink-2:#4a6076; --ink-3:#93a4b5;
+  --hair:#e3d8c9; --hair-2:#efe7db;
+  --loop:#6b5aa5; --tools:#d2601a; --skills:#c9973f; --gov:#7d8c5c;
+  --trouble:#c0392b; --brass:#c9a24c; --good:#57892b;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--cream);color:var(--ink);font-family:Poppins,'Segoe UI',system-ui,sans-serif;
+  font-weight:300;-webkit-font-smoothing:antialiased;padding:24px 28px 34px;
+  overflow-x:hidden}
+.wrap{max-width:1460px;margin:0 auto}
+
+.mast{display:flex;align-items:center;gap:16px;padding-bottom:10px}
+.wordmark{font-weight:600;font-size:20px;letter-spacing:-.02em}
+.rule{flex:1;height:1px;background:var(--brass);opacity:.5}
+.spark{color:var(--brass);font-size:15px}
+h1{font-family:'Playfair Display',serif;font-weight:700;font-size:44px;line-height:1.04;margin:12px 0 3px}
+h1 em{font-style:italic;font-weight:500}
+.dek{font-size:14px;color:var(--ink-2);margin-bottom:18px}
+.dek b{font-weight:500;color:var(--ink)}
+
+.grid{display:grid;grid-template-columns:1.36fr .86fr;gap:20px;align-items:start;min-width:0}
+.grid > div{min-width:0}
+@media(max-width:1080px){.grid{grid-template-columns:1fr}}
+.card{background:var(--paper);border:1px solid var(--hair);border-radius:10px;min-width:0}
+.chead{display:flex;flex-wrap:wrap;row-gap:4px;justify-content:space-between;align-items:center;
+  padding:11px 16px;border-bottom:1px solid var(--hair-2)}
+.chead h2{font-size:10.5px;font-weight:600;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-2)}
+.chead .meta{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--ink-3)}
+
+/* ---------------- the pixel world ---------------- */
+.world{padding:14px;background:#2b3d4f}
+.screen{border:4px solid #16304f;border-radius:3px;overflow:hidden;
+  box-shadow:inset 0 0 0 3px #3d5c78, 0 6px 0 rgba(0,0,0,.18)}
+svg#house{width:100%;height:auto;display:block;shape-rendering:crispEdges}
+body.theater svg#house{width:100%;height:100%}
+.rmname{font-family:Silkscreen,monospace;font-size:9px;fill:#16304f;opacity:.75;letter-spacing:.5px}
+.rmdet{font-family:Silkscreen,monospace;font-size:8px;fill:#16304f;opacity:.62}
+.bubtxt{font-family:Silkscreen,monospace;font-size:8px;fill:#16304f}
+.actor{transition:transform .5s steps(6)}
+.mom-in{animation:pop .3s steps(3)}
+@keyframes pop{from{opacity:0}to{opacity:1}}
+@media (prefers-reduced-motion: reduce){.actor{transition:none}.mom-in{animation:none}}
+
+/* ---------------- dock ---------------- */
+.dock{display:flex;gap:8px;padding:12px 14px;background:#243546;overflow-x:auto}
+.slot{flex:0 0 auto;min-width:120px;background:#fdfaf6;border:2px solid #16304f;
+  border-radius:3px;padding:7px 9px;transition:.3s}
+.slot .nm{font-family:Silkscreen,monospace;font-size:8px;color:var(--ink);letter-spacing:.4px}
+.slot .st{font-family:Silkscreen,monospace;font-size:7px;margin-top:5px;color:var(--ink-3)}
+.slot .bar{height:4px;background:#e3d8c9;margin-top:6px;border-radius:2px;overflow:hidden}
+.slot .bar i{display:block;height:100%;width:0;background:var(--ink-3);transition:.4s}
+.slot.on{border-color:var(--tools)}
+.slot.on .st{color:var(--tools)} .slot.on .bar i{background:var(--tools);width:100%}
+.slot.bad{border-color:var(--trouble);background:#fbecea}
+.slot.bad .st{color:var(--trouble)} .slot.bad .bar i{background:var(--trouble);width:100%}
+.slot.gov{border-color:var(--brass);background:#f7f0dd}
+.slot.gov .st{color:#8a6d1f} .slot.gov .bar i{background:var(--brass);width:100%}
+
+
+/* ---------------- lucide icons (editorial layer only) ---------------- */
+.ic{flex:none;vertical-align:-2px}
+.spin{animation:spin .9s linear infinite;transform-origin:50% 50%}
+@keyframes spin{to{transform:rotate(360deg)}}
+/* A selected milestone draws its glyph in rather than just changing colour. */
+.ms.sel .circ .ic{stroke-dasharray:64;stroke-dashoffset:64;animation:draw .5s ease forwards}
+@keyframes draw{to{stroke-dashoffset:0}}
+@media (prefers-reduced-motion: reduce){
+  .spin{animation:none}
+  .ms.sel .circ .ic{animation:none;stroke-dashoffset:0}
+}
+.slot .nm{display:flex;align-items:center;gap:5px}
+.slot.run{border-color:var(--loop)}
+.slot.run .st{color:var(--loop)}
+.slot.run .bar i{background:var(--loop);width:55%}
+.ms .nm{display:flex;align-items:center;gap:7px}
+.ms .ix{font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--ink-3);font-weight:400}
+.tab{display:flex;align-items:center;gap:6px}
+.tab .n{font-family:'IBM Plex Mono',monospace;font-size:10px;opacity:.55}
+
+
+/* ---------------- sky + walking Dad ---------------- */
+.skytxt{font-family:Silkscreen,monospace;font-size:8px;letter-spacing:.4px}
+.drop{animation:fall .9s linear infinite}
+@keyframes fall{from{transform:translateY(-4px);opacity:0}30%{opacity:1}to{transform:translateY(8px);opacity:0}}
+#dad{transition:transform .9s steps(8), opacity .3s;transform:translate(560px,420px)}
+
+
+/* ---------------- life in the house ----------------
+ * Everything below is driven by journal facts, not decoration for its own
+ * sake: the grill smokes because check_grill said it is lit, rain falls
+ * because check_weather said rain, a room shakes because a tool reported a
+ * problem, Dad's legs move because his room changed. */
+#dad .f2{display:none}
+#dad.walking .f1{animation:stride .28s steps(1) infinite}
+#dad.walking .f2{display:block;animation:stride .28s steps(1) infinite reverse}
+@keyframes stride{0%,49%{opacity:1}50%,100%{opacity:0}}
+#dad.faceleft{}  /* mirrored via transform on the inner frames */
+#dad.faceleft .f1,#dad.faceleft .f2{transform:scaleX(-1);transform-origin:24px 0}
+.smoke{animation:rise 1.8s ease-out infinite;opacity:0}
+@keyframes rise{0%{transform:translateY(0);opacity:.0}15%{opacity:.75}100%{transform:translateY(-34px) translateX(6px);opacity:0}}
+.glow{animation:breathe 2.6s ease-in-out infinite}
+@keyframes breathe{0%,100%{opacity:.75}50%{opacity:1}}
+.shake{animation:jolt .45s ease-in-out;transform-origin:center}
+@keyframes jolt{0%,100%{transform:translateX(0)}20%{transform:translateX(-4px)}40%{transform:translateX(4px)}60%{transform:translateX(-3px)}80%{transform:translateX(2px)}}
+/* theater camera: the whole house scales toward the active room */
+body.theater svg#house{transition:transform .9s cubic-bezier(.2,.7,.2,1), transform-origin .9s;}
+@media (prefers-reduced-motion: reduce){
+  #dad.walking .f1,#dad.walking .f2,.smoke,.glow,.shake{animation:none}
+  body.theater svg#house{transition:none}
+}
+
+/* ---------------- theater mode ----------------
+ * The house takes the whole viewport, everything else steps back, and Dad's
+ * current line runs as a subtitle. Same fold, same events — just a stage. */
+button.tiny{font-size:10.5px;padding:4px 10px;border-radius:14px}
+.subtitle{display:none}
+body.theater{background:#0b1220}
+body.theater .mast,body.theater h1,body.theater .dek,body.theater .grid>div:last-child,
+body.theater .goal,body.theater footer,body.theater #threadcard,body.theater #banner{display:none}
+body.theater .grid{display:block}
+body.theater .card{border:none;background:transparent;border-radius:0}
+body.theater .chead{position:fixed;top:14px;left:24px;right:24px;z-index:3;border:none;
+  color:#e4e6ee;background:transparent}
+body.theater .chead h2,body.theater .chead .meta{color:#e4e6ee}
+body.theater .world{position:fixed;inset:0;padding:60px 6vw 170px;background:#0b1220;display:flex;
+  align-items:center;justify-content:center}
+body.theater .screen{height:calc(100vh - 230px);width:auto;max-width:100%;aspect-ratio:640/474;
+  box-shadow:0 0 0 4px #16304f,0 40px 100px rgba(0,0,0,.6)}
+body.theater .subtitle{display:block;position:fixed;left:0;right:0;bottom:118px;text-align:center;
+  font-family:'Playfair Display',serif;font-style:italic;font-size:26px;color:#fdfaf6;
+  text-shadow:0 2px 12px rgba(0,0,0,.7);pointer-events:none;padding:0 8vw}
+body.theater .dock{position:fixed;left:0;right:0;bottom:0;z-index:2;justify-content:center}
+body.theater .transport{position:fixed;top:12px;right:200px;z-index:4;border:none;background:transparent;padding:0}
+body.theater .transport select{display:none}
+body.theater .transport .count{color:#e4e6ee}
+body.theater .transport button:not(.primary){background:#fdfaf6}
+
+/* ---------------- transport ---------------- */
+.transport{display:flex;align-items:center;gap:9px;padding:13px 16px;
+  border-top:1px solid var(--hair-2);flex-wrap:wrap}
+button{font-family:Poppins,'Segoe UI',system-ui,sans-serif;font-size:12px;font-weight:500;cursor:pointer;
+  background:#fff;color:var(--ink);border:1px solid var(--hair);padding:8px 15px;
+  border-radius:20px;transition:.15s}
+button:hover{border-color:var(--ink)}
+button.primary{background:var(--ink);color:#fff;border-color:var(--ink)}
+button:focus-visible{outline:2px solid var(--brass);outline-offset:2px}
+input[type=range]{flex:1;min-width:100px;accent-color:var(--tools);cursor:pointer}
+.count{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--ink-3);min-width:62px}
+select{font-family:Poppins,'Segoe UI',system-ui,sans-serif;font-size:12px;padding:7px 10px;border-radius:20px;
+  border:1px solid var(--hair);background:#fff;color:var(--ink);max-width:300px}
+
+/* ---------------- right column ---------------- */
+.stages{display:flex;flex-wrap:wrap;gap:6px;padding:13px 16px}
+.stg{font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.09em;
+  text-transform:uppercase;padding:5px 10px;border-radius:20px;border:1px solid var(--hair-2);
+  color:var(--ink-3);transition:.3s;white-space:nowrap}
+.stg.done{color:var(--ink-2);border-color:var(--hair)}
+.stg.now{color:#fff;background:var(--ink);border-color:var(--ink)}
+.stg.warn{color:var(--trouble);border-color:var(--trouble)}
+.stg.gov{color:#8a6d1f;border-color:var(--brass)}
+.stg.ask{color:#9a7326;border-color:var(--skills);background:#fdf6e8}
+
+.mlist{max-height:264px;overflow-y:auto}
+.ms{display:grid;grid-template-columns:26px 1fr;gap:10px;padding:10px 16px;cursor:pointer;
+  transition:.15s;opacity:.28;border-left:2px solid transparent}
+.ms.shown{opacity:1}
+.ms:hover{background:#faf5ee}
+.ms.sel{border-left-color:var(--tools);background:#fdf6ec}
+.circ{width:24px;height:24px;border-radius:50%;display:grid;place-items:center;
+  border:1.4px solid var(--loop);color:var(--loop);margin-top:1px}
+.ms.t .circ{border-color:var(--trouble);color:var(--trouble)}
+.ms.g .circ{border-color:var(--brass);color:#8a6d1f}
+.ms.q .circ{border-color:var(--skills);color:#9a7326}
+.ms .nm{font-size:12.5px;font-weight:500}
+.ms.t .nm{color:var(--trouble)} .ms.g .nm{color:#8a6d1f} .ms.q .nm{color:#9a7326}
+.ms .dt{font-size:11.5px;color:var(--ink-2);margin-top:2px;line-height:1.5}
+.cause{border-top:1px solid var(--hair-2);padding:14px 16px;min-height:100px}
+.cause .lbl{font-size:9.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-3);font-weight:600}
+.cause .body{font-size:12.5px;line-height:1.65;color:var(--ink-2);margin-top:8px}
+.cause .body strong{font-weight:500;color:var(--ink)}
+.cause code{font-family:'IBM Plex Mono',monospace;font-size:11px;background:#f4ece0;
+  padding:2px 6px;border-radius:3px;color:var(--tools)}
+.cause em{font-style:italic;color:var(--ink)}
+
+.tabs{display:flex;flex-wrap:wrap;row-gap:2px;gap:4px;padding:6px 16px 0;border-bottom:1px solid var(--hair-2)}
+.tab{font-size:11px;font-weight:500;padding:10px 11px;cursor:pointer;color:var(--ink-3);
+  border-bottom:2px solid transparent}
+.tab.on{color:var(--ink);border-bottom-color:var(--tools)}
+.led{max-height:190px;overflow-y:auto;padding:6px 16px 12px}
+.led .row{font-size:12px;color:var(--ink-2);padding:8px 0;border-bottom:1px solid var(--hair-2);line-height:1.5}
+.led .row:last-child{border-bottom:none}
+.led .empty{font-size:12px;color:var(--ink-3);padding:12px 0}
+.led .mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px}
+.rawtoggle{font-size:10px;font-weight:600;letter-spacing:.03em;text-transform:uppercase;
+  color:var(--ink-3);background:transparent;border:1px solid var(--hair-2);border-radius:4px;
+  padding:2px 7px;cursor:pointer;margin-right:8px}
+.rawtoggle.on{color:var(--paper);background:var(--tools);border-color:var(--tools)}
+
+.goal{margin-top:18px;background:var(--paper);border:1px solid var(--hair);border-radius:10px;
+  padding:17px 20px;display:grid;grid-template-columns:1fr auto;gap:18px;align-items:center}
+@media(max-width:720px){.goal{grid-template-columns:1fr}}
+.goal .q{font-family:'Playfair Display',serif;font-size:20px;font-style:italic}
+.goal .c{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--ink-3);margin-top:7px}
+.goal .c b{color:var(--trouble);font-weight:500}
+.pill{font-size:10.5px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;
+  padding:8px 15px;border-radius:20px;border:1px solid var(--hair);color:var(--ink-3);white-space:nowrap}
+.pill.partial{border-color:var(--skills);color:#9a7326;background:#fdf6e8}
+.pill.achieved{border-color:var(--good);color:var(--good);background:#f2f7ec}
+.pill.blocked{border-color:var(--trouble);color:var(--trouble);background:#fbecea}
+.pill.awaiting{border-color:var(--skills);color:#9a7326;background:#fdf6e8}
+footer{margin-top:24px;padding-top:13px;border-top:1px solid var(--hair);
+  display:flex;justify-content:space-between;font-size:11.5px;color:var(--ink-3)}
+.banner{background:#fbecea;border:1px solid #ecccc7;color:#a5382c;padding:12px 16px;
+  border-radius:8px;font-size:12.5px;margin-bottom:16px}
+
+/* ---------------- the conversation thread ---------------- */
+.thread-body{padding:16px 18px;display:flex;flex-direction:column;gap:12px;
+  max-height:340px;overflow-y:auto}
+.turn-row{display:flex;flex-direction:column;gap:6px}
+.msg{max-width:70%;padding:10px 14px;border-radius:12px;font-size:13px;line-height:1.5}
+.msg.you{align-self:flex-end;background:var(--ink);color:#fff;border-bottom-right-radius:3px}
+.msg.dad{align-self:flex-start;background:#f2ece1;color:var(--ink);border-bottom-left-radius:3px}
+.msg.dad.q{border:1.5px dashed var(--skills);background:#fdf6e8}
+.msg.dad.final{border:1.5px solid var(--good);background:#f2f7ec}
+.msg .who{font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;opacity:.6;
+  margin-bottom:3px;display:flex;align-items:center;gap:5px}
+.msg.dad.q .who{color:#9a7326}
+.msg.dad.final .who{color:var(--good)}
+/* Replay reveals the thread one message at a time. Hidden messages keep their
+ * space collapsed so the thread grows downward as the conversation happens. */
+.msg.hidden{display:none}
+.msg.now{box-shadow:0 0 0 2px var(--tools)}
+.msg.you.now{box-shadow:0 0 0 2px var(--brass)}
+</style>
+</head>
+<body><div class="wrap">
+
+<div class="mast">
+  <span class="wordmark">dadloop</span><span class="rule"></span><span class="spark">&#10022;</span>
+</div>
+<h1>Mom&rsquo;s <em>Console</em></h1>
+<div class="dek">What is happening in the house, and what Dad has done.
+  <b>Everything here is derived from the journal, never asserted.</b></div>
+
+<div id="banner"></div>
+
+<div class="grid">
+  <div>
+    <div class="card">
+      <div class="chead"><h2>The house</h2>
+        <span style="display:flex;gap:12px;align-items:center">
+          <span class="meta" id="stagenow">&mdash;</span>
+          <button class="tiny" id="theater" title="Theater mode: the house, full screen, with subtitles">&#9974; theater</button>
+        </span></div>
+      <div class="world">
+        <div class="screen">
+          <svg id="house" viewBox="0 0 640 474" role="img"
+               aria-label="Pixel view of the house showing which room Dad is working in">
+            <g id="houseWorld"></g>
+            <g id="dad" class="actor"></g>
+            <g id="dadbub"></g>
+          </svg>
+          <div class="subtitle" id="subtitle"></div>
+        </div>
+      </div>
+      <div class="dock" id="dock"></div>
+      <div class="transport">
+        <select id="turnsel" aria-label="Choose a turn"></select>
+        <button class="primary" id="play">Play</button>
+        <button id="step">Step</button>
+        <button id="reset">Reset</button>
+        <input type="range" id="scrub" min="0" value="0" aria-label="Scrub through the turn">
+        <span class="count" id="count">0 / 0</span>
+      </div>
+    </div>
+  </div>
+
+  <div>
+    <div class="card">
+      <div class="chead"><h2>Stage</h2><span class="meta">state machine</span></div>
+      <div class="stages" id="stages"></div>
+    </div>
+    <div class="card" style="margin-top:20px">
+      <div class="chead"><h2>Milestones</h2><span class="meta">click to trace</span></div>
+      <div class="mlist" id="mlist"></div>
+      <div class="cause" id="cause">
+        <div class="lbl">Why it says that</div>
+        <div class="body">Select a milestone to see the mechanical event underneath it.</div>
+      </div>
+    </div>
+    <div class="card" style="margin-top:20px">
+      <div class="chead"><h2>Household ledger</h2>
+        <span class="meta"><button class="rawtoggle" id="rawtoggle" title="Show the record exactly as written to disk">raw</button> across sessions</span>
+      </div>
+      <div class="tabs" id="tabs"></div>
+      <div class="led" id="led"></div>
+    </div>
+  </div>
+</div>
+
+<div class="card thread" id="threadcard" style="margin-top:20px; display:none">
+  <div class="chead"><h2>The conversation</h2><span class="meta">one session, in order</span></div>
+  <div class="thread-body" id="thread"></div>
+</div>
+
+<div class="goal">
+  <div><div class="q" id="goaltext">&mdash;</div><div class="c" id="constraints"></div></div>
+  <div class="pill" id="outcome">no turn loaded</div>
+</div>
+
+<footer>
+  <span>Swami Chandrasekaran &nbsp;@swamichandra</span>
+  <span id="jpath"></span>
+</footer>
+</div>
+
+<script src="/static/icons.js?v=__V__"></script>
+<script src="/static/sprites.js?v=__V__"></script>
+<script src="/static/world.js?v=__V__"></script>
+<script src="/static/console.js?v=__V__"></script>
+</body></html>
