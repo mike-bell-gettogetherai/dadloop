@@ -191,7 +191,7 @@ window and it just becomes the next ordinary question instead of getting
 lost.
 
 <p align="center">
-<img src="docs/tui-mid-turn-fact.png" alt="A second person's fact landing mid-turn, before Dad answers" width="90%">
+<img src="docs/dadloop-collab.gif" alt="A second person's fact landing mid-turn, before Dad answers" width="90%">
 </p>
 
 Alone, `dadloop` looks and works exactly as it always did; the house is just
