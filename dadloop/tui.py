@@ -1,5 +1,5 @@
 """Author: Swami Chandrasekaran
-Last Modified: 2026-08-15
+Last Modified: 2026-09-06
 Purpose: Terminal user interface for auditing agent turns and harness activity.
 
 The work surface — a calmer, long-horizon terminal UI where the harness shows
@@ -45,9 +45,10 @@ from textual.widgets import (
     Input, Markdown, Static, Collapsible, Button,
 )
 
-from .core.agent import AgentLoop
+from .core.agent import AgentLoop, default_user
 from .launch import LaunchScreen
-from .theme import DADLOOP_THEME, paint, markup as _mk
+from .theme import DADLOOP_THEME, GREETING, paint, markup as _mk
+from .scene import HouseState, mini_house
 from .core import tools as toolkit
 from .core import skills as skill_lib
 
@@ -184,18 +185,28 @@ class TitleBar(_S):
         # Parts in priority order — identity first, then what it costs to lose.
         # Each is (plain text for measuring, marked-up text for display).
         name = ("dadloop", "[b $dad]dadloop[/]")
-        tag = (" — an agent harness, explained through Dad",
-               " [$muted-2]— an agent harness, explained through Dad[/]")
+        # The tagline carries the time-of-day greeting from theme.py, so the
+        # palette the clock chose reads as deliberate: "morning. coffee's on."
+        # on the cream theme, "late. porch light's on." on the indigo one.
+        tag = (f" — {GREETING}", f" [$muted-2]— {GREETING}[/]")
         sess = (f"  session {self.session}",
                 f"  [$muted]session[/] [$ink-text]{self.session}[/]")
         model = (f" · {self.dad.model}", f" [$faint]·[/] [$muted]{self.dad.model}[/]")
         stat = (f"  ● {status}", f"  [{status_c}]● {status}[/]")
+        # In a shared house, who else is here. Read off presence frames; in
+        # single-user mode the list is empty and the part is skipped.
+        others = [n for n in getattr(self.dad, "people", []) if n != getattr(self.dad, "user", None)] \
+            if getattr(self.dad, "joined", False) else []
+        with_ = ((f"  with {', '.join(others)}", f"  [$muted]with[/] [$skill]{', '.join(others)}[/]")
+                 if others else ("", ""))
         time_ = (f" · {clock}", f" [$faint]·[/] [$muted-2]{clock}[/]")
 
         # Always show the dot, name and status; add the rest while it fits.
         dot = ("● ", f"[{status_c}]●[/] ")
         chosen = [dot, name, stat]
-        for part in (tag, sess, model, time_):
+        for part in (with_, tag, sess, model, time_):
+            if not part[0]:
+                continue
             candidate = chosen + [part]
             if sum(len(p[0]) for p in candidate) <= width - 2:
                 # keep display order stable: everything sits before status/time
@@ -312,6 +323,7 @@ class RailStats(_S):
             f"{self._row('tokens', f'{t.tokens_in}↑ {t.tokens_out}↓')}\n"
             f"{self._row('spend', f'${t.cost:.4f}', '$dad')}\n"
             f"{self._row('avg / turn', f'{t.avg_turn_ms:.0f}ms')}\n\n"
+            + self._house()
             + self._accomplishments(led)
             + self._top_skills()
             + self._skill_health()
@@ -377,6 +389,12 @@ class RailStats(_S):
             label = name if len(name) <= 15 else name[:14] + "…"
             lines.append(f"{bar} [$ink-text]{label}[/] [$muted-2]{count}[/]")
         return "\n".join(lines) + "\n\n"
+
+    def _house(self) -> str:
+        """The live floor plan: which rooms this turn has touched, and where Dad
+        is right now. Same room mapping as the web console, so the two agree."""
+        house = getattr(self.app, "_house", None)
+        return mini_house(house) if house is not None else ""
 
     def _skill_health(self) -> str:
         """Grounded health of the skills Dad has actually used — the always-on,
@@ -1113,6 +1131,28 @@ class DadApp(App):
         padding: 0 1;
         border-left: thick $dad;
     }
+    /* Them: the other person in the house. Same shape as You, cooler edge,
+       so whose ask it was reads at a glance without reading the name. */
+    Markdown.them {
+        color: $ink-text;
+        margin: 1 0 0 0;
+        padding: 0 1;
+        border-left: thick $skill;
+    }
+    /* A note handed to a turn already in flight, and Dad's use of it. */
+    Static.fact-added {
+        color: $skill;
+        margin: 0 1;
+        padding: 0 1;
+    }
+    Markdown.you.note {
+        border-left: thick $skill;
+    }
+    /* A clarifying reply: Dad waiting on you. Same shape, question colour. */
+    Markdown.dad.asks {
+        border-left: thick $skill;
+        background: $skill 8%;
+    }
     Markdown.dad {
         background: $dad 8%;
         border-left: thick $dad;
@@ -1240,10 +1280,18 @@ class DadApp(App):
         self.register_theme(DADLOOP_THEME)
         self.theme = "dadloop"
         self.dad = dad or AgentLoop()
+        # True when this TUI has joined a house (dadloop --join) rather than
+        # owning a Dad. Other people's turns then arrive as frames and are drawn
+        # by the same code that draws your own.
+        self.joined = bool(getattr(self.dad, "joined", False))
+        self.me = getattr(self.dad, "user", None) or default_user()
+        self._own_pending = False       # a turn of yours is queued or running
+        self._other: tuple[dict, dict, object] | None = None   # bodies, titles, handler
         self._status: StatusLine | None = None
         self._skills_loaded: list[str] = []
         # What happened in the current turn, for the ACTION TAKEN line.
         self._turn_actions: list[str] = []
+        self._house = HouseState()          # the rail's live floor plan
         self._turn_skills: list[str] = []
         self._turn_holds: list[tuple[str, str]] = []
 
@@ -1275,23 +1323,12 @@ class DadApp(App):
         self._fit_shell_to_terminal()
         self.sub_title = "online" if self.dad.online else "offline - no API key"
 
-        if self.dad.online:
-            # An empty canvas tells a new user nothing. Show what to type, and
-            # pick examples that actually exercise the harness.
-            self._mount(_S(
-                "[b]Ask him something that has to be worked out, not just answered.[/b]\n\n"
-                "  [$dad]Twelve people Saturday, and I've got forty bucks.[/]\n"
-                "  [$dad]Grill's not lighting and people are coming at six.[/]\n"
-                "  [$dad]Can we just get the nice grill? It's like $400.[/]\n\n"
-                "[$muted-2]Tab moves between his reasoning steps once he starts. "
-                "F4 opens the admin view.[/]",
-                id="empty-state"))
+        if self.joined:
+            self.dad.on_other = self._house_frame
+            self._refresh_presence()
+            self._mount_catch_up(getattr(self.dad, "history", []))
         else:
-            self._mount(_S(
-                "[b]Dad is asleep.[/b]\n\n"
-                "Put a real key in [b].env[/b] as ANTHROPIC_API_KEY and restart.\n"
-                "[$muted-2]The tests run without one: python tests/test_plan.py[/]",
-                id="empty-state"))
+            self._mount_empty_state()
 
         # The landing page goes on top of the built work surface, not instead of
         # it — so dismissing it reveals a canvas that is already composed and
@@ -1353,6 +1390,14 @@ class DadApp(App):
         if not text:
             return
         event.input.value = ""
+        if self.joined and self._other is not None:
+            # Someone else's turn is on screen right now. What you type goes
+            # to Dad as something you're handing him mid-thought, not a new
+            # question queued behind theirs — the same move as leaning over
+            # and telling the person working the problem what you know.
+            self.dad.add_note(text)
+            self._mount(Markdown(f"**{self.me}** — {text}", classes="you note"))
+            return
         self._begin_turn(text)
 
     def _begin_turn(self, text: str) -> None:
@@ -1363,12 +1408,18 @@ class DadApp(App):
         sequence would drift the first time either changed.
         """
         self.query_one("#input", Input).disabled = True
+        self._own_pending = True
         self._clear_empty_state()
-        self._mount(Markdown(f"**You** — {text}", classes="you"))
+        # Alone in the house you are "You"; with company, your name, so both
+        # people's asks read the same way.
+        others = [n for n in getattr(self.dad, "people", []) if n != self.me]
+        who = self.me if (self.joined and others) else "You"
+        self._mount(Markdown(f"**{who}** — {text}", classes="you"))
         self.query_one(PlanPanel).clear()
         # Reset the per-turn record. What Dad DID is a different question from
         # what he said, and the answer to it is assembled here as the turn runs.
         self._turn_actions = []
+        self._house.reset()
         self._turn_skills = []
         self._turn_holds = []
         self._status = StatusLine()
@@ -1381,9 +1432,28 @@ class DadApp(App):
         # event can fill in the body of the right Collapsible.
         bodies: dict[str, Static] = {}
         titles: dict[str, Collapsible] = {}
+        on_event = self._make_on_event(bodies, titles)
 
+        def work() -> None:
+            self.dad.turn(text, on_event=on_event, user=self.me)
+            self.call_from_thread(self._finish_turn)
+
+        self.run_worker(work, thread=True, exclusive=True)
+
+    def _make_on_event(self, bodies: dict, titles: dict):
+        """The per-turn event handler, built once per turn.
+
+        Runs on whichever thread the events arrive on (the worker for your own
+        turn, the house reader for someone else's) and marshals every UI touch
+        with call_from_thread. Factored out so the other person's turn in a
+        shared house is drawn by exactly this code, not a copy of it.
+        """
         def on_event(kind: str, payload) -> None:
-            if kind == "plan":
+            if kind == "waiting":
+                # Shared house: Dad is on someone else's request first.
+                if self._status is not None:
+                    self.call_from_thread(self._status.set_activity, "Waiting", str(payload))
+            elif kind == "plan":
                 self.call_from_thread(self.query_one(PlanPanel).set_plan, payload)
             elif kind == "plan_step_done":
                 idx, step_text, planned = payload
@@ -1399,6 +1469,8 @@ class DadApp(App):
                     if skill_name:
                         self._turn_skills.append(skill_name)
                     self.call_from_thread(self._mount_skill_marker, skill_name)
+                self._house.on_tool_call(name, args)
+                self.call_from_thread(self.query_one(RailStats).refresh_stats)
                 self.call_from_thread(self._mount_step, name, args, call_id,
                                       bodies, titles)
                 # Keep the status line honest about what he's doing right now.
@@ -1416,6 +1488,10 @@ class DadApp(App):
                     self.call_from_thread(body.update, str(out))
                 if ms is not None:
                     self.call_from_thread(self._finish_step, call_id, ms, titles)
+                head = str(out).lstrip().lower()
+                problem = head.startswith(("problem", "conflict", "error", "no skill", "[blocked"))
+                self._house.on_tool_result(name, out, problem, args=None)
+                self.call_from_thread(self.query_one(RailStats).refresh_stats)
             elif kind == "controller":
                 # (name, action, reason[, args]) — a real policy hit on a tool
                 # call. Voice trims do NOT come through here: they're editing,
@@ -1424,6 +1500,9 @@ class DadApp(App):
                 args = payload[3] if len(payload) > 3 else {}
                 target = "your reply" if name == "reply" else name
                 self._turn_holds.append((target, action))
+                if action in ("deny", "modify"):
+                    self._house.on_governed(name)
+                    self.call_from_thread(self.query_one(RailStats).refresh_stats)
                 if action == "deny":
                     # A full hold gets the modal, over the dimmed canvas.
                     self.call_from_thread(
@@ -1433,15 +1512,152 @@ class DadApp(App):
                         self._mount, ReviewCard("adjusted", target, reason))
             elif kind == "final":
                 self.call_from_thread(self._show_final, payload)
+            elif kind == "clarify":
+                # Dad handed the turn back with a question. Same bubble, marked
+                # as a question, so the person knows he is waiting on them.
+                self.call_from_thread(self._show_final, payload, True)
             elif kind == "trace":
                 self.call_from_thread(self._mount,
                                       _S(f"[$faint]└ {payload}[/]", classes="trace"))
+            elif kind == "fact_added":
+                who, text = payload.get("from"), payload.get("text", "")
+                label = "you" if who == self.me else who
+                self.call_from_thread(
+                    self._mount, _S(f"[$skill]↳ {label} added:[/] {text}", classes="fact-added"))
+        return on_event
 
-        def work() -> None:
-            self.dad.turn(text, on_event=on_event)
-            self.call_from_thread(self._finish_turn)
+    # --- the other person's turns, in a shared house ----------------------
+    def _house_frame(self, frame: dict) -> None:
+        """A frame from the house that this TUI did not cause. Runs on the
+        client's reader thread; every UI touch goes through call_from_thread,
+        the same as the worker above."""
+        kind = frame.get("kind")
+        if kind == "presence":
+            self.call_from_thread(self._refresh_presence)
+            return
+        if kind == "queued":
+            return                          # someone else is waiting; nothing to draw
+        if kind == "turn_start":
+            self.call_from_thread(self._begin_other_turn, frame.get("user") or "someone",
+                                  str(frame.get("payload") or ""))
+            return
+        if self._other is None:
+            return                          # a turn that started before we joined
+        _, _, handler = self._other
+        if kind == "turn_end":
+            self.call_from_thread(self._finish_other_turn)
+            return
+        handler(kind, frame.get("payload"))
 
-        self.run_worker(work, thread=True, exclusive=True)
+    def _begin_other_turn(self, who: str, text: str) -> None:
+        self._clear_empty_state()
+        self._mount(Markdown(f"**{who}** — {text}", classes="them"))
+        self.query_one(PlanPanel).clear()
+        self._turn_actions = []
+        self._house.reset()
+        self._turn_skills = []
+        self._turn_holds = []
+        if self._status is None:
+            self._status = StatusLine()
+            self._mount(self._status)
+        self._status.set_activity("Thinking", f"on {who}'s request")
+        bodies: dict[str, Static] = {}
+        titles: dict[str, Collapsible] = {}
+        self._other = (bodies, titles, self._make_on_event(bodies, titles))
+
+    def _finish_other_turn(self) -> None:
+        self._other = None
+        if self._status is not None and not self._own_pending:
+            self._status.remove()
+            self._status = None
+        elif self._status is not None:
+            self._status.set_activity("Thinking", "your turn is next")
+        self.query_one(RailStats).refresh_stats()
+
+    def _refresh_presence(self) -> None:
+        others = [n for n in getattr(self.dad, "people", []) if n != self.me]
+        base = "online" if self.dad.online else "offline"
+        self.sub_title = f"{base} · with {', '.join(others)}" if others else base
+        self.query_one(TitleBar).refresh_bar()
+
+    def _mount_empty_state(self) -> None:
+        """What an empty canvas says. Shared by the single-user start and the
+        first person into a fresh house."""
+        if self.dad.online:
+            # An empty canvas tells a new user nothing. Show what to type, and
+            # pick examples that actually exercise the harness.
+            self._mount(_S(
+                "[b]Ask him something that has to be worked out, not just answered.[/b]\n\n"
+                "  [$dad]Twelve people Saturday, and I've got forty bucks.[/]\n"
+                "  [$dad]Grill's not lighting and people are coming at six.[/]\n"
+                "  [$dad]Can we just get the nice grill? It's like $400.[/]\n\n"
+                "[$muted-2]Tab moves between his reasoning steps once he starts. "
+                "F4 opens the admin view.[/]",
+                id="empty-state"))
+        else:
+            self._mount(_S(
+                "[b]Dad is asleep.[/b]\n\n"
+                "Put a real key in [b].env[/b] as ANTHROPIC_API_KEY and restart.\n"
+                "[$muted-2]The tests run without one: python tests/test_plan.py[/]",
+                id="empty-state"))
+
+    def _mount_catch_up(self, history: list[dict]) -> None:
+        """What happened in this house before you sat down.
+
+        The anti-duplication view: each earlier turn as who asked, what Dad
+        derived (milestones, by name), and what he answered. Read off the
+        house's record, three lines a turn; nothing is summarised by the model.
+        """
+        turns: list[dict] = []
+        for f in history:
+            k = f.get("kind")
+            if k == "turn_start":
+                turns.append({"user": f.get("user") or "someone",
+                              "prompt": str(f.get("payload") or ""), "end": None})
+            elif k == "turn_end" and turns:
+                turns[-1]["end"] = f.get("payload") or {}
+        others = [n for n in getattr(self.dad, "people", []) if n != self.me]
+        who = f"with {', '.join(others)}" if others else "nobody else here yet"
+        if not turns:
+            if getattr(self.dad, "house", None) is not None and not others:
+                # First person in: this terminal is the house. Say how the
+                # next person gets in, then the ordinary welcome.
+                self._mount(_S("[$muted-2]This terminal is the house. Anyone who runs "
+                               "[b]dadloop[/b] on this machine joins this session; "
+                               "they will see what you ask, and you theirs.[/]",
+                               classes="trace"), scroll=False)
+                self._mount_empty_state()
+                return
+            self._mount(_S(f"[b]You joined the house.[/b]  [$muted-2]{who}[/]\n\n"
+                           "[$muted-2]Nothing has been asked in this session yet. "
+                           "Whatever anyone asks Dad from now on shows up here, by name.[/]",
+                           id="empty-state"))
+            return
+        self._mount(_S(f"[$muted]EARLIER IN THIS HOUSE[/]  [$muted-2]{len(turns)} "
+                       f"turn{'s' if len(turns) != 1 else ''} · {who}[/]", classes="trace"))
+        for t in turns:
+            cls = "you" if t["user"] == self.me else "them"
+            name = "You" if t["user"] == self.me and not self.joined else t["user"]
+            self._mount(Markdown(f"**{name}** — {t['prompt']}", classes=cls), scroll=False)
+            end = t["end"] or {}
+            # The milestones that carry a fact worth not re-discovering. The
+            # goal and the answer are already on screen as the ask and the reply.
+            ms = [m for m in end.get("milestones") or []
+                  if m.get("milestone") not in (None, "GOAL_FRAMED", "GOAL_SETTLED")]
+            if ms:
+                bits = []
+                for m in ms:
+                    label = str(m["milestone"]).replace("_", " ").lower()
+                    det = str(m.get("detail") or m.get("subject") or "")
+                    det = det.split(":", 1)[-1].strip() if det.upper().startswith(("PROBLEM:", "CONFLICT:")) else det
+                    det = det.split(". ")[0]
+                    if len(det) > 40:
+                        det = det[:39].rstrip() + "…"
+                    bits.append(f"{label}" + (f" [$faint]{det}[/]" if det else ""))
+                self._mount(_S("[$muted-2]  ⋯ " + " [$faint]·[/] ".join(bits) + "[/]",
+                               classes="trace"), scroll=False)
+            if end.get("text"):
+                self._mount(Markdown(f"**Dad** — {end['text']}", classes="dad"), scroll=False)
 
     def _mount_step(self, name: str, args: dict, call_id: str,
                     bodies: dict[str, Static], titles: dict[str, Collapsible]) -> None:
@@ -1505,14 +1721,20 @@ class DadApp(App):
         self._mount(_S(f"⬡ assembled skill: [b]{skill_name}[/b]",
                            classes="skill-marker"))
 
-    def _show_final(self, text: str) -> None:
-        if self._status is not None:
+    def _show_final(self, text: str, question: bool = False) -> None:
+        """Dad's reply. `question` is a clarify: he did no work and asked
+        something back, so it is labelled as a question and styled apart."""
+        # In a shared house the one status line may belong to your own queued
+        # turn while someone else's is finishing. Leave it for them; their turn
+        # is next and _finish_other_turn relabels it.
+        if self._status is not None and not (self._other is not None and self._own_pending):
             self._status.remove()
             self._status = None
         summary = self._action_summary()
         if summary:
             self._mount(_S(summary, classes="action-taken"))
-        self._mount(Markdown(f"**Dad** — {text}", classes="dad"))
+        label = "Dad · asks" if question else "Dad"
+        self._mount(Markdown(f"**{label}** — {text}", classes="dad asks" if question else "dad"))
 
     def _action_summary(self) -> str:
         """One line naming what Dad actually DID this turn.
@@ -1544,6 +1766,7 @@ class DadApp(App):
         return ("[$muted-2]ACTION TAKEN[/]  " + "   [$faint]·[/]   ".join(parts))
 
     def _finish_turn(self) -> None:
+        self._own_pending = False
         if self._status is not None:
             self._status.remove()
             self._status = None
@@ -1565,7 +1788,16 @@ class DadApp(App):
         # The rail nudges when a skill goes improvable; this is where you act on
         # it. The screen runs the expensive loop on its own worker, so opening it
         # never blocks the conversation behind it.
-        self.push_screen(ImproveScreen(self.dad))
+        house = getattr(self.dad, "house", None)
+        if self.joined and house is None:
+            # The loop rewrites Dad's playbooks. That belongs to the process
+            # that owns Dad, not to a client of it.
+            self.notify("Self-improvement runs where Dad lives: the terminal that "
+                        "opened the house, or `dadloop --improve`.",
+                        title="Shared house", timeout=6)
+            return
+        # Joined to a house this process owns: the real Dad is house.dad.
+        self.push_screen(ImproveScreen(house.dad if house is not None else self.dad))
 
     def action_expand_all(self) -> None:
         for c in self.query(Collapsible):

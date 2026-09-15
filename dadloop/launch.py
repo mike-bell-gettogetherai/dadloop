@@ -1,5 +1,5 @@
 """Author: Swami Chandrasekaran
-Last Modified: 2026-07-20
+Last Modified: 2026-09-04
 Purpose: Launch screen shown before the work surface — the landing page, in a terminal.
 
 A product landing page, rendered in a terminal.
@@ -33,6 +33,7 @@ from textual.screen import Screen
 from textual.widgets import Input, Static
 
 from .theme import markup as _mk, paint
+from .scene import launch_scene
 
 
 # A block alphabet, only the glyphs the headline needs. Each entry is five rows
@@ -120,6 +121,11 @@ class LaunchScreen(Screen[str | None]):
         margin-bottom: 1;
     }
 
+    #launch-scene {
+        width: auto; content-align: center middle; text-align: center;
+        margin: 0 0 1 0; text-style: none;
+    }
+
     /* The headline. Coral, because it is the one thing on screen that should
        pull the eye — the same rule the accent colour follows everywhere else. */
     #launch-head {
@@ -177,6 +183,9 @@ class LaunchScreen(Screen[str | None]):
             with Center():
                 with Vertical(id="launch-col"):
                     yield Static("◍  d a d l o o p", id="launch-mark")
+                    # The house, under whatever sky the clock chose. Not a logo:
+                    # a scene that agrees with the time you opened the app.
+                    yield Static(_mk(launch_scene()), id="launch-scene")
                     yield Static(headline, id="launch-head")
                     yield Static(
                         _mk("[$ink-text]Why are you still prompting into the "
@@ -214,7 +223,11 @@ class LaunchScreen(Screen[str | None]):
         card = self.query_one("#launch-card")
         head = self.query_one("#launch-head")
         sub = self.query_one("#launch-sub")
+        scene = self.query_one("#launch-scene")
 
+        # Twelve rows of house is the most decorative block, so it goes first
+        # when the terminal is short; the prompt is never dropped.
+        scene.display = height >= 50
         card.display = height >= 34      # the demo is a luxury, not the point
         head.display = height >= 20      # the wordmark still names the app
         sub.display = height >= 16

@@ -1,5 +1,5 @@
 """Author: Swami Chandrasekaran
-Last Modified: 2026-07-12
+Last Modified: 2026-09-13
 Purpose: Package entry point exporting AgentLoop, Context, DadState, and SemanticMemory.
 
 dadloop — a model-in-the-loop dad harness.
@@ -15,4 +15,4 @@ from .core.context import Context, DadState
 from .core.memory import SemanticMemory
 
 __all__ = ["AgentLoop", "Context", "DadState", "SemanticMemory"]
-__version__ = "1.1.1"
+__version__ = "1.2.0"

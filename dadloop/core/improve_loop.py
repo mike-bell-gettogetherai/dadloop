@@ -1,5 +1,5 @@
 """Author: Swami Chandrasekaran
-Last Modified: 2026-07-20
+Last Modified: 2026-09-04
 Purpose: RSI propose/replay/gate loop — the model rewrites skills, replay decides, a human promotes.
 
 The propose / replay / gate half of harness-level RSI.
@@ -173,6 +173,14 @@ def _score_body_on_cases(make_agent, skill: str, body: str,
         original.body = body            # temporary in-memory swap
         for prompt in cases:
             agent = make_agent()         # fresh memory + client per case
+            # A replay is a rehearsal, not something Dad did. It must not land
+            # in the household journal, or every `--improve` run would show up
+            # on Mom's Console as a burst of turns nobody asked for. Found in
+            # review: replay agents built with a bare AgentLoop() inherit the
+            # default memory, and so the real journal. Silence it here, at the
+            # one place every replay agent passes through, rather than trusting
+            # each caller's make_agent to remember.
+            agent.journal = None
             agent.turn(prompt)
             recs = improve._load_outcomes(agent.ctx.memory, skill)
             if not recs:

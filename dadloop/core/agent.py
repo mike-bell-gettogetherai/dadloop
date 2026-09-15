@@ -1,5 +1,5 @@
 """Author: Swami Chandrasekaran
-Last Modified: 2026-08-15
+Last Modified: 2026-09-06
 Purpose: Model-in-the-loop agent harness orchestrating tools, memory, and governance.
 
 The harness — a real model-in-the-loop agent loop.
@@ -27,6 +27,7 @@ caller should say so — a harness with no model isn't a harness.
 from __future__ import annotations
 
 import os
+import threading
 from pathlib import Path
 
 from .context import Context
@@ -34,6 +35,37 @@ from . import tools as toolkit
 from .controller import Mom
 from .trace import Tracer
 from .plan import Plan, parse_plan
+from . import journal as _journal
+from . import stages as _stages
+
+
+def _journal_fields(kind: str, payload) -> dict:
+    """Flatten one emitted event into journal columns.
+
+    Kept next to the emit wiring rather than inside Journal because it encodes
+    this harness's event shapes, which the journal itself should stay ignorant
+    of. A reader gets stable field names instead of positional tuples.
+    """
+    if kind == "plan":
+        return {"steps": list(payload or [])}
+    if kind == "plan_step_done":
+        return {"index": payload[0], "step": payload[1],
+                "planned": payload[2] if len(payload) > 2 else True}
+    if kind == "tool_call":
+        return {"name": payload[0], "args": payload[1], "call_id": payload[2]}
+    if kind == "tool_result":
+        return {"name": payload[0], "result": payload[1],
+                "call_id": payload[2],
+                "ms": payload[3] if len(payload) > 3 else None,
+                "problem": _stages.is_problem(payload[1])}
+    if kind == "controller":
+        return {"name": payload[0], "action": payload[1], "reason": payload[2],
+                "args": payload[3] if len(payload) > 3 else None}
+    if kind in ("thinking", "final", "clarify"):
+        return {"text": payload}
+    if kind == "trace":
+        return {"summary": payload}
+    return {"payload": payload}
 
 _MAX_STEPS = 8  # safety rail: a dad monologue must eventually end
 
@@ -119,9 +151,34 @@ def _constitution(ctx: Context) -> str:
     )
 
 
-def _system_prompt(ctx: Context) -> str:
+def default_user() -> str:
+    """Who is talking to Dad when nobody said.
+
+    DADLOOP_USER wins, then the OS login name. Zero configuration on purpose:
+    a household should not need accounts to know who asked for the cookout.
+    """
+    name = os.environ.get("DADLOOP_USER", "").strip()
+    if name:
+        return name
+    try:
+        import getpass
+        return getpass.getuser()
+    except Exception:
+        return "you"
+
+
+def _system_prompt(ctx: Context, people: list[str] | None = None,
+                   ledger: str = "") -> str:
     """Constitution + recent grievances + the skill catalog. Only skill
-    descriptions go here; full bodies load on demand via load_skill."""
+    descriptions go here; full bodies load on demand via load_skill.
+
+    `people` is passed only when the house is shared: the household members
+    who have spoken this session. `ledger` is the derived session record
+    (stages.ledger_note) in the same case. Dad is then told each message
+    starts with the speaker's name, shown exactly what each person already
+    asked and got, and told he is the one who catches a repeated ask. The
+    record is derived from the journal, so this does not rest on the model
+    remembering a transcript."""
     from . import skills as skill_lib
 
     grudges = [e.text for e in ctx.memory.recall("grievances")][-4:]
@@ -131,6 +188,19 @@ def _system_prompt(ctx: Context) -> str:
         memory_note += "\nStanding grievances (bring them up when relevant): " + "; ".join(grudges)
     if kids:
         memory_note += f"\nYour kids: {', '.join(kids)}."
+    if people:
+        memory_note += (
+            "\n\nThis house is shared: more than one person may talk to you in "
+            f"this same conversation (so far: {', '.join(people)}). Each message "
+            "starts with the speaker's name. Before you act on a request, check "
+            "the session record below. If it shows another person already asked "
+            "for the same thing or something that covers it, do not redo the "
+            "work: say who asked, what was found, and what you told them, then "
+            "add only what is new for this person. If the request is genuinely "
+            "new, proceed as usual. Address the person speaking by name when it "
+            "helps.")
+        if ledger:
+            memory_note += "\n\n" + ledger
     from .tools import DEFAULT_LOCATION
 
     return (
@@ -169,9 +239,26 @@ class AgentLoop:
     """Wraps Claude in a tool-use loop. The dad harness proper."""
 
     def __init__(self, ctx: Context | None = None, mom: Mom | None = None,
-                 trace_sink=None) -> None:
+                 trace_sink=None, journal=None, session_id: str | None = None) -> None:
         self.ctx = ctx or Context()
         self.mom = mom or Mom()          # the controller above the harness
+        # One AgentLoop instance already IS one conversation — _messages below
+        # accumulates across every turn() call on it. The harness just never
+        # named that fact anywhere durable. session_id is that name: every turn
+        # this instance runs carries it, so a reader (the console) can group
+        # "when is it," "this weekend," "3 boys," "8-10" back into the single
+        # exchange they actually were, instead of four unrelated turns.
+        self.session_id = session_id or _journal.new_turn_id()
+        # Where this harness writes its turn journal. Pass a Journal to point it
+        # somewhere specific (tests do), or False to run without one. Default is
+        # the shared path, so a console can watch any dadloop on the machine.
+        if journal is False:
+            self.journal = None
+        elif journal is None:
+            self.journal = _journal.Journal(
+                _journal.default_path(getattr(self.ctx.memory, "root", None)))
+        else:
+            self.journal = journal
         # Trace summaries need somewhere to go. If the caller passed an explicit
         # sink (tests do, to capture them), use it. Otherwise they ride the same
         # on_event stream as everything else, as ("trace", summary), so a frontend
@@ -193,6 +280,25 @@ class AgentLoop:
             except ImportError:
                 self._client = None
         self._messages: list[dict] = []  # the model-visible transcript
+        # Who has spoken to this Dad, in order of first appearance. One name in
+        # single-user mode. `shared` is set by the house server: from then on
+        # every user message carries its speaker's name, so Dad can tell the
+        # two people apart and catch the second one asking for what the first
+        # already got. Read off the record; nobody is asked.
+        self.people: list[str] = []
+        self.shared: bool = False
+        # Mid-turn fact injection. A second person can hand Dad something he
+        # didn't ask for while he's still working a multi-step turn (the
+        # "add it directly, no copying the conversation" behaviour). It is
+        # consumed the next time this turn is about to report tool results
+        # back to the model, folded in as extra context on that same message
+        # (an API turn can't hold two consecutive user messages, so it has to
+        # ride along with the results already going out). Accepted only while
+        # a tool-calling loop is actually in flight; otherwise the caller
+        # should queue it as an ordinary turn instead of losing it.
+        self._facts_lock = threading.Lock()
+        self._pending_facts: list[tuple[str, str]] = []
+        self._accepting_facts = False
 
     @property
     def online(self) -> bool:
@@ -207,8 +313,25 @@ class AgentLoop:
             self._emit("trace", summary)
 
     # --- one user turn = one full tool-use loop --------------------------
-    def turn(self, user_text: str, *, on_event=None) -> str:
+    def inject_fact(self, text: str, who: str) -> bool:
+        """Hand Dad something while a turn is in flight. Returns whether it
+        landed: True means it will reach the model before its next reply;
+        False means there is no turn in flight to receive it right now (the
+        caller should treat the text as a normal new turn instead)."""
+        with self._facts_lock:
+            if not self._accepting_facts:
+                return False
+            self._pending_facts.append((who, text))
+        if self.journal is not None:
+            self.journal.write({"session_id": self.session_id, "turn_id": self._turn_id,
+                                "tier": 1, "kind": "fact_added", "user": who, "text": text})
+        return True
+
+    def turn(self, user_text: str, *, on_event=None, user: str | None = None) -> str:
         """Run the model-in-the-loop until it stops requesting tools.
+
+        `user` is who is asking. It lands on the turn_start journal event so a
+        reader can attribute the turn; default is `default_user()`.
 
         `on_event(kind, payload)` is an optional observer the harness calls as
         the loop unfolds, so any frontend (TUI, REPL, tests) can render progress
@@ -219,10 +342,54 @@ class AgentLoop:
             ("tool_call", (name, args, id))  a tool the model chose to run
             ("tool_result", (name, out, id)) that tool's output
             ("controller", (name, act, why[, args])) Mom allowed / denied / modified it
+            ("clarify", text)                a text-only reply with no plan and no
+                                              tool call yet — Dad asking something
+                                              back rather than concluding
             ("final", text)                  the closing dad reply
             ("trace", summary)               per-turn tokens / cost / latency
+
+        Every journaled event also carries this instance's session_id, so a
+        multi-turn exchange (a question, a short answer, another question, the
+        eventual plan) can be read back as one conversation rather than several
+        unrelated turns. See __init__.
         """
-        emit = on_event or (lambda *_: None)
+        raw_emit = on_event or (lambda *_: None)
+
+        # The journal is a second consumer of the same stream the UI gets. It is
+        # additive on purpose: on_event's signature and every existing consumer
+        # are untouched, and a journal failure can never fail a turn.
+        turn_id = _journal.new_turn_id()
+        machine = _stages.StageMachine()
+
+        machine_closed: list = []
+
+        def emit(kind, payload=None):
+            raw_emit(kind, payload)
+            jrnl = self.journal
+            if jrnl is None:
+                return
+            seq = jrnl.write({"session_id": self.session_id, "turn_id": turn_id,
+                              "tier": 1, "kind": kind, **_journal_fields(kind, payload)})
+            for derived in machine.observe(kind, payload):
+                jrnl.write({"session_id": self.session_id, "turn_id": turn_id,
+                            "tier": 2, "caused_by_seq": seq, **derived})
+            # Closing on the final event rather than at each return covers every
+            # exit path — offline, normal, and the stuck ceiling — from one place.
+            if kind in ("final", "clarify") and not machine_closed:
+                machine_closed.append(True)
+                for derived in machine.finish(final_text=payload or ""):
+                    jrnl.write({"session_id": self.session_id, "turn_id": turn_id,
+                                "tier": 2, "caused_by_seq": seq, **derived})
+
+        self._turn_id = turn_id
+        self._machine = machine
+        who = user or default_user()
+        if who not in self.people:
+            self.people.append(who)
+        if self.journal is not None:
+            self.journal.write({"session_id": self.session_id, "turn_id": turn_id,
+                                "tier": 1, "kind": "turn_start", "prompt": user_text,
+                                "user": who})
         # The tracer fires its summary when the root span closes, which happens
         # inside this method — so it needs a handle on this turn's observer.
         self._emit = emit
@@ -232,8 +399,21 @@ class AgentLoop:
                    "and he'll wake up.")
             emit("final", msg)
             return msg
+        self._pending_facts = []
 
-        self._messages.append({"role": "user", "content": user_text})
+        # In a shared house the model sees who is speaking, and the system
+        # prompt carries the derived record of the session so far (built from
+        # the journal before this turn was written). In a single-user house it
+        # sees the text exactly as before.
+        spoken = f"{who}: {user_text}" if self.shared else user_text
+        ledger = ""
+        if self.shared and self.journal is not None:
+            try:
+                rows = _stages.session_ledger(self.journal.read_all(), self.session_id)
+                ledger = _stages.ledger_note([r for r in rows if r["turn_id"] != turn_id])
+            except Exception:
+                ledger = ""
+        self._messages.append({"role": "user", "content": spoken})
         # Let tools (e.g. web_search) reach the same client + model.
         self.ctx._client = self._client        # type: ignore[attr-defined]
         self.ctx._model = self.model           # type: ignore[attr-defined]
@@ -249,12 +429,27 @@ class AgentLoop:
             loaded_skills: list[str] = []
             tool_error_count = 0
             veto_count = 0
+            # A clarifying question and a completed answer look identical at the
+            # API level: text, no tool calls. The one fact that tells them apart
+            # without asking the model to say which it is: did this turn do any
+            # observable work first? A plan stated, or a tool actually run. If
+            # neither happened before the text-only reply, it is a question, not
+            # a conclusion — the same "derive, never ask" rule the RSI scorer and
+            # the stage machine already follow.
+            did_work = False
+            # Open for facts only once we're actually in the multi-step part of
+            # a turn — there has to be a later "here are the tool results"
+            # message for an injected fact to ride along on. A single-shot
+            # reply never gets one, so a fact arriving during a turn that
+            # never calls a tool simply isn't accepted; see inject_fact().
+            self._accepting_facts = True
             for _ in range(_MAX_STEPS):
                 with self.tracer.span("llm.call", model=self.model) as llm:
                     resp = self._client.messages.create(
                         model=self.model,
                         max_tokens=1024,
-                        system=_system_prompt(self.ctx),
+                        system=_system_prompt(
+                            self.ctx, self.people if self.shared else None, ledger),
                         tools=toolkit.schemas(),
                         messages=self._messages,
                     )
@@ -268,6 +463,12 @@ class AgentLoop:
                 tool_uses = [b for b in resp.content if b.type == "tool_use"]
 
                 if not tool_uses:
+                    # A plan can arrive in a response that never calls a tool at
+                    # all — a fully-answerable request stated and settled in one
+                    # shot. Check for it here too, since the plan_captured branch
+                    # below is only reached when tool_uses is non-empty.
+                    if interim and not plan_captured and not parse_plan(interim).is_empty:
+                        did_work = True
                     # Voice enforcement is quiet on purpose — it is editing, not
                     # governance, so it raises no controller event. Mom's visible
                     # interventions are reserved for policy hits on real actions.
@@ -275,7 +476,24 @@ class AgentLoop:
                     self._record_skill_outcome(
                         turn_span, plan, loaded_skills, tool_error_count,
                         veto_count, user_text)
-                    emit("final", final_text)
+                    # Two conditions, both read off the shape of the output, not
+                    # asked of the model: no observable work happened, AND the
+                    # reply is actually a question (ends in "?"). Either alone is
+                    # too loose — no-plan-no-tool also matches a short prose
+                    # conclusion ("sure, corn and peppers work") that never
+                    # states a numbered plan or calls a tool but still settles
+                    # the ask. Both together catch the real thing: Dad handing
+                    # the turn back to the person instead of concluding it.
+                    self._accepting_facts = False
+                    if did_work or not final_text.rstrip().endswith("?"):
+                        emit("final", final_text)
+                    else:
+                        # No plan, no tool call, and the reply asks something —
+                        # this turn did nothing but hand it back. Recorded
+                        # distinctly so a reader (the console) can render a
+                        # clarifying round-trip instead of a string of
+                        # unrelated one-line "turns".
+                        emit("clarify", final_text)
                     return final_text
 
                 if interim and not plan_captured:
@@ -283,6 +501,7 @@ class AgentLoop:
                     candidate = parse_plan(interim)
                     if not candidate.is_empty:
                         plan = candidate
+                        did_work = True
                         emit("plan", [s.text for s in plan.steps])
                     else:
                         emit("thinking", interim)
@@ -291,6 +510,7 @@ class AgentLoop:
 
                 results = []
                 for tu in tool_uses:
+                    did_work = True
                     emit("tool_call", (tu.name, tu.input, tu.id))
                     idx, step = plan.match(tu.name, tu.input)
                     emit("plan_step_done", (idx, step.text, step.planned))
@@ -334,8 +554,19 @@ class AgentLoop:
                         "tool_use_id": tu.id,
                         "content": out,
                     })
+                with self._facts_lock:
+                    pending, self._pending_facts = self._pending_facts, []
+                if pending:
+                    # One block per fact, clearly whose it is and that it
+                    # arrived mid-turn — Dad reads this the same turn he acts
+                    # on the tool results sitting right next to it.
+                    note = "\n".join(
+                        f"[{who} just told you this, while you were mid-turn]: {text}"
+                        for who, text in pending)
+                    results.append({"type": "text", "text": note})
                 self._messages.append({"role": "user", "content": results})
 
+        self._accepting_facts = False
         stuck = "(Dad got distracted and wandered off mid-thought. Ask again.)"
         emit("final", stuck)
         return stuck

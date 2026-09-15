@@ -1,11 +1,11 @@
 """Author: Swami Chandrasekaran
-Last Modified: 2026-07-12
+Last Modified: 2026-09-05
 Purpose: Scripted demo scenarios showcasing harness capabilities.
 
 Demo scenarios — the hard parts of a harness, made visible.
 
-Five scripted moments. Each stages the mocked WORLD, asks Dad one question, and
-lets the model work. Needs ANTHROPIC_API_KEY; the tests/ mirror the mechanics
+Six scripted moments. Each stages the mocked WORLD, asks Dad one question, and
+lets the model work. The sixth puts two people in one house. Needs ANTHROPIC_API_KEY; the tests/ mirror the mechanics
 with a fake model so they run offline.
 
     python -m dadloop.demos
@@ -110,6 +110,37 @@ def demo_skills(dad: AgentLoop) -> None:
         "I'm hosting a cookout Saturday. What do I do?", on_event=_trace))
 
 
+def demo_shared_house(dad: AgentLoop) -> None:
+    _banner(
+        "DEMO 6 · Two people, one Dad",
+        "swami asks about the cookout; priya, in the same house, asks the same "
+        "thing later. Dad is the one who notices, names who handled it, and "
+        "points back instead of redoing the work.",
+    )
+    import time
+    from .house import House, HouseClient
+
+    tools.WORLD.update(propane="empty", budget=40)
+    house = House(dad, port=0).start()      # port 0: any free port, this demo only
+    try:
+        swami = HouseClient(port=house.port, user="swami").connect()
+        priya = HouseClient(port=house.port, user="priya").connect()
+        seen = []
+        priya.on_other = lambda f: seen.append(f.get("kind"))
+        time.sleep(0.2)
+        print(f"  In the house: {', '.join(swami.people)}\n")
+        print("  swami ›", swami.turn("Twelve people Saturday, forty bucks. Are we set?",
+                                      on_event=_trace))
+        time.sleep(0.3)
+        print(f"\n  (priya's terminal drew swami's turn as it ran: "
+              f"{sum(1 for k in seen if k == 'tool_call')} tool calls, then the reply)\n")
+        print("  priya ›", priya.turn("Can you plan the cookout for Saturday?",
+                                      on_event=_trace))
+        swami.close(); priya.close()
+    finally:
+        house.stop()
+
+
 def main() -> None:
     dad = AgentLoop()
     if not dad.online:
@@ -121,6 +152,7 @@ def main() -> None:
     demo_memory(AgentLoop())
     demo_controller(AgentLoop())
     demo_skills(AgentLoop())
+    demo_shared_house(AgentLoop())
 
 
 if __name__ == "__main__":
