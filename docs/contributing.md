@@ -9,7 +9,7 @@ Purpose: Contributor guide for linting, testing, and extending dadloop.
 ```bash
 pip install -e ".[dev]"
 python -m pyflakes dadloop/                 # lint
-for t in tests/*.py; do python3 $t; done    # 20 tests
+for t in tests/*.py; do python3 $t; done    # 21 tests
 ```
 
 Tests run against a fake model, so no API key is needed to develop.
@@ -52,6 +52,7 @@ worse than no test, because it implies coverage that is not there.
 | `test_constitution.py` | the reply trimmer amputated warmth for coming last |
 | `test_skill_orchestration.py` | skills retrieved but did not compose |
 | `test_placeholder_key.py` | the `.env.example` placeholder passed as a real key and the first turn died on a 401 |
+| `test_console_install.py` | the documented console install had no WebSocket library, so `/ws` 404'd and the house never drew |
 
 If a change teaches a harness concept honestly, it belongs. If it is decoration that looks
 like a capability, it does not.
