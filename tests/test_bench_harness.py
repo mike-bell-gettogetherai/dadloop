@@ -105,7 +105,62 @@ def test_harness_resets_world_and_disables_live_search():
     print("PASS: each case starts from FROZEN_WORLD, world restored after, live search bypassed")
 
 
+def _row(case_id, repeat, *, llm_calls, llm_ms, total_ms, tokens_in, tokens_out, cost,
+         loaded, outcome="ACHIEVED", unpriced=0, load_calls=None):
+    return {"arm": "x", "case_id": case_id, "repeat": repeat, "llm_calls": llm_calls,
+            "llm_ms": llm_ms, "total_ms": total_ms, "tool_ms": total_ms - llm_ms,
+            "tokens_in": tokens_in, "tokens_out": tokens_out, "cost": cost,
+            "unpriced_calls": unpriced, "loaded_skills": loaded,
+            "load_skill_calls": len(loaded) if load_calls is None else load_calls,
+            "outcome": outcome, "plan_steps": 2, "plan_done": 2, "vetoes": 0}
+
+
+def test_report_summarizes_means_medians_and_outcomes():
+    from bench.report import summarize
+    rows = [_row("a", 0, llm_calls=3, llm_ms=3000, total_ms=3100, tokens_in=1000, tokens_out=100,
+                 cost=0.0015, loaded=["hosting"]),
+            _row("a", 1, llm_calls=1, llm_ms=1000, total_ms=1000, tokens_in=500, tokens_out=50,
+                 cost=0.00075, loaded=[], outcome="PARTIAL"),
+            _row("b", 0, llm_calls=2, llm_ms=2000, total_ms=2000, tokens_in=700, tokens_out=70,
+                 cost=0.00105, loaded=["grilling"], unpriced=1)]
+    s = summarize(rows)
+    assert s["n"] == 3
+    assert s["llm_calls"]["mean"] == 2.0 and s["llm_calls"]["p50"] == 2
+    assert s["llm_ms"]["mean"] == 2000.0
+    assert abs(s["cost"]["sum"] - (0.0015 + 0.00075 + 0.00105)) < 1e-12
+    assert s["unpriced_calls"] == 1
+    assert s["outcomes"] == {"ACHIEVED": 2, "PARTIAL": 1}
+    assert abs(s["load_skill_calls"]["mean"] - 2 / 3) < 1e-12
+    print("PASS: summary has n, mean/p50 per metric, cost sum, unpriced total, outcome counts")
+
+
+def test_compare_reports_deltas_and_skill_agreement():
+    from bench.report import compare
+    base = [_row("a", 0, llm_calls=3, llm_ms=3000, total_ms=3000, tokens_in=1000, tokens_out=100,
+                 cost=0.0015, loaded=["hosting", "grilling"]),
+            _row("a", 1, llm_calls=3, llm_ms=3200, total_ms=3200, tokens_in=1000, tokens_out=100,
+                 cost=0.0015, loaded=["hosting", "grilling"]),
+            _row("b", 0, llm_calls=1, llm_ms=900, total_ms=900, tokens_in=400, tokens_out=40,
+                 cost=0.0006, loaded=[])]
+    other = [_row("a", 0, llm_calls=2, llm_ms=2000, total_ms=2400, tokens_in=1100, tokens_out=100,
+                  cost=0.0016, loaded=["hosting"], load_calls=0),
+             _row("b", 0, llm_calls=1, llm_ms=950, total_ms=950, tokens_in=400, tokens_out=40,
+                  cost=0.0006, loaded=["grilling"], load_calls=0)]
+    c = compare(base, other)
+    a = c["per_case"]["a"]
+    assert a["llm_calls"] == (3.0, 2.0)                 # (base mean, other mean)
+    assert a["llm_ms"] == (3100.0, 2000.0)
+    assert a["skill_jaccard"] == 0.5                    # {hosting,grilling} vs {hosting}
+    b = c["per_case"]["b"]
+    assert b["skill_jaccard"] == 0.0                    # {} vs {grilling}: a false positive
+    assert abs(c["overall"]["llm_calls_delta"] - (1.5 - 7 / 3)) < 1e-12   # other - base, means
+    assert round(c["overall"]["skill_jaccard_mean"], 3) == 0.25
+    print("PASS: per-case base/other means, Jaccard on loaded-skill sets, overall deltas")
+
+
 if __name__ == "__main__":
     test_corpus_is_well_formed()
     test_harness_writes_one_row_per_case_and_repeat()
     test_harness_resets_world_and_disables_live_search()
+    test_report_summarizes_means_medians_and_outcomes()
+    test_compare_reports_deltas_and_skill_agreement()
