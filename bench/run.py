@@ -22,9 +22,9 @@ from dadloop import AgentLoop, Context, SemanticMemory
 from dadloop.core.agent import _load_dotenv
 
 from .harness import run_arm
-from .prompts import CASES, LADDER
+from .prompts import CASES, LADDER, STRESS
 
-CORPORA = {"ladder": LADDER, "wide": CASES}
+CORPORA = {"ladder": LADDER, "stress": STRESS, "wide": CASES}
 
 ARMS: dict[str, object] = {}
 

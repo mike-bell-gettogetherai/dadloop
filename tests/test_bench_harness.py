@@ -218,6 +218,50 @@ def test_report_groups_by_tier():
     print("PASS: by_tier groups rows and reports observed skill-load rate per rung")
 
 
+def test_stress_block_is_its_own_rung():
+    from bench.prompts import STRESS, LADDER
+    from dadloop.core import skills as skill_lib
+    assert len(STRESS) >= 2
+    for c in STRESS:
+        assert c["tier"] == 5 and c["stress"] is True, c
+        for sk in c["expected_skills"]:
+            assert sk in skill_lib.SKILLS, (c["id"], sk)
+    assert any(len(c["expected_skills"]) >= 7 for c in STRESS), "one prompt should plausibly need most of a day"
+    assert any(len(c["expected_skills"]) == len(skill_lib.SKILLS) for c in STRESS), "one prompt should ask for the whole shelf"
+    assert not any(c.get("stress") for c in LADDER), "stress cases must not leak into the ladder means"
+    print(f"PASS: {len(STRESS)} stress prompts at tier 5, kept out of the ladder")
+
+
+def test_row_marks_a_turn_that_hit_the_call_ceiling():
+    from bench.harness import run_arm
+    from dadloop.core.agent import _MAX_STEPS
+
+    def make_agent(memory_root: Path) -> AgentLoop:
+        class FM:
+            def create(self, **kw):       # never stops calling tools
+                return NS(model="claude-haiku-4-5-20251001",
+                          content=[NS(type="tool_use", id="g", name="check_grill", input={})],
+                          usage=NS(input_tokens=100, output_tokens=5))
+        dad = AgentLoop(Context(memory=SemanticMemory(memory_root)))
+        dad._client = type("FC", (), {"messages": FM()})()
+        return dad
+
+    out = Path(tempfile.mkdtemp())
+    path = run_arm("x", [{"id": "loop", "prompt": "grill?", "expected_skills": []}],
+                   repeats=1, make_agent=make_agent, out_dir=out)
+    r = json.loads(path.read_text().splitlines()[0])
+    assert r["llm_calls"] == _MAX_STEPS and r["hit_ceiling"] is True, r
+    print(f"PASS: a turn cut off at {_MAX_STEPS} calls is marked hit_ceiling")
+
+
+def test_report_counts_ceiling_hits():
+    from bench.report import summarize
+    rows = [dict(_row("a", 0, llm_calls=8, llm_ms=1, total_ms=1, tokens_in=1, tokens_out=1, cost=0.0, loaded=[]), hit_ceiling=True),
+            dict(_row("a", 1, llm_calls=3, llm_ms=1, total_ms=1, tokens_in=1, tokens_out=1, cost=0.0, loaded=[]), hit_ceiling=False)]
+    assert summarize(rows)["ceiling_rate"] == 0.5
+    print("PASS: summary reports the share of turns that hit the ceiling")
+
+
 if __name__ == "__main__":
     test_corpus_is_well_formed()
     test_harness_writes_one_row_per_case_and_repeat()
@@ -228,3 +272,6 @@ if __name__ == "__main__":
     test_ladder_has_two_prompts_per_tier()
     test_cli_model_flag_names_the_arm_and_stamps_the_manifest()
     test_report_groups_by_tier()
+    test_stress_block_is_its_own_rung()
+    test_row_marks_a_turn_that_hit_the_call_ceiling()
+    test_report_counts_ceiling_hits()

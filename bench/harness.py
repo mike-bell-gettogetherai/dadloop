@@ -69,6 +69,9 @@ def row_from_journal(events: list[dict], *, arm: str, case: dict, repeat: int) -
         "outcome": end.get("outcome"), "plan_steps": end.get("plan_steps"),
         "plan_done": end.get("plan_done"), "vetoes": end.get("vetoes"),
         "final_chars": len(final or ""),
+        # The loop's stuck path: it ran out of model calls while still asking
+        # for tools, and returned the "wandered off" line instead of an answer.
+        "hit_ceiling": (final or "").startswith("(Dad got distracted"),
     }
 
 

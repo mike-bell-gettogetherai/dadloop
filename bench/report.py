@@ -40,6 +40,7 @@ def summarize(rows: list[dict]) -> dict:
         out[m] = _stat([r.get(m) for r in rows])
     out["unpriced_calls"] = sum(r.get("unpriced_calls") or 0 for r in rows)
     out["outcomes"] = dict(Counter(r.get("outcome") for r in rows))
+    out["ceiling_rate"] = (sum(1 for r in rows if r.get("hit_ceiling")) / len(rows)) if rows else 0.0
     return out
 
 
@@ -108,7 +109,8 @@ def _fmt(v, nd=1):
 
 
 def print_summary(name: str, s: dict) -> None:
-    print(f"\n== {name}  (n={s['n']}, unpriced calls={s['unpriced_calls']}, outcomes={s['outcomes']})")
+    print(f"\n== {name}  (n={s['n']}, unpriced calls={s['unpriced_calls']}, "
+          f"hit ceiling={s['ceiling_rate']:.0%}, outcomes={s['outcomes']})")
     print(f"{'metric':<18}{'mean':>12}{'p50':>12}")
     for m in METRICS:
         nd = 6 if m == "cost" else 1
@@ -124,7 +126,8 @@ def print_tiers(name: str, rows: list[dict]) -> None:
     for tier, s in t.items():
         print(f"tier {tier}   n={s['n']:<3} {_fmt(s['llm_calls']['mean']):>5} calls "
               f"{_fmt(s['llm_ms']['mean'], 0):>7}ms  ${_fmt(s['cost']['mean'], 4)}  "
-              f"loaded={s['skill_load_rate']:.0%}  skills/turn={s['skills_per_turn']:.1f}")
+              f"loaded={s['skill_load_rate']:.0%}  skills/turn={s['skills_per_turn']:.1f}"
+              f"  ceiling={s['ceiling_rate']:.0%}")
 
 
 def print_compare(c: dict) -> None:

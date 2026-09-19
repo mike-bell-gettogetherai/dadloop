@@ -47,6 +47,27 @@ LADDER = [
      "expected_skills": ["hosting", "money-decisions", "grilling", "yard-work"]},
 ]
 
+# Stress block, reported on its own and never folded into the ladder means. No
+# realistic single ask needs this many skills; the point is the loop's hard
+# ceiling of _MAX_STEPS model calls per turn. A turn that wants seven bodies
+# one round trip at a time can run out of calls, which is the exact case a
+# pre-selector would relieve, so the ceiling-hit rate is the number to watch.
+STRESS = [
+    {"id": "s5-heavy-day", "tier": 5, "stress": True,
+     "prompt": ("Big Saturday. Hosting the cookout for the neighbors on forty bucks and the lawn's a jungle. "
+                "The boys are already fighting over the controller, Maya's in her room crying because she "
+                "didn't make the team, and Jake wants to stay out past midnight after. Then I need everyone "
+                "in bed at a decent hour. What's the plan, start to finish?"),
+     "expected_skills": ["hosting", "money-decisions", "grilling", "yard-work", "breaking-up-fights",
+                         "comforting-a-kid", "saying-no", "bedtime"]},
+    {"id": "s5-everything", "tier": 5, "stress": True,
+     "prompt": "Walk me through everything you know how to handle around here, one by one, and how you'd handle each.",
+     "expected_skills": ["answering-big-questions", "bedtime", "breaking-up-fights", "comforting-a-kid",
+                         "fixing-things", "grilling", "grocery-runs", "hosting", "money-decisions",
+                         "road-trips", "saying-no", "snow-shoveling", "teaching-kids-stuff",
+                         "the-thermostat", "yard-work"]},
+]
+
 # The wider sweep: one prompt per skill plus composition, ambiguity, and no-skill cases.
 CASES = [
     # --- one skill each -------------------------------------------------
