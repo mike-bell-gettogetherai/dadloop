@@ -1,0 +1,10 @@
+{
+ "arm": "jev-claude-sonnet-5",
+ "base_arm": "jev",
+ "corpus": "stress",
+ "repeats": 5,
+ "cases": 2,
+ "dry": false,
+ "model": "claude-sonnet-5",
+ "started_at": "20260919T040328Z"
+}

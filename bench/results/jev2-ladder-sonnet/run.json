@@ -1,0 +1,10 @@
+{
+ "arm": "jev-triggers-claude-sonnet-5",
+ "base_arm": "jev-triggers",
+ "corpus": "ladder",
+ "repeats": 5,
+ "cases": 10,
+ "dry": false,
+ "model": "claude-sonnet-5",
+ "started_at": "20260919T114251Z"
+}

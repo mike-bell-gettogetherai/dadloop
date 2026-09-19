@@ -1,0 +1,61 @@
+
+== baseline-claude-haiku-4-5-20251001  (n=50, unpriced calls=0, outcomes={'ACHIEVED': 36, 'AWAITING': 3, 'PARTIAL': 11})
+metric                    mean         p50
+llm_calls                  2.1         2.0
+llm_ms                  4994.3      4944.5
+total_ms                4998.6      4947.4
+tool_ms                    0.4         0.4
+tokens_in               7400.5      6844.0
+tokens_out               337.2       317.0
+cost                  0.009087    0.008367
+load_skill_calls           1.0         0.0
+cost total              0.4543
+
+== baseline-claude-haiku-4-5-20251001 by designed tier   (n | llm_calls | llm_ms | cost | loaded any skill | skills/turn)
+tier 0   n=10    1.5 calls    2209ms  $0.0054  loaded=0%  skills/turn=0.0
+tier 1   n=10    2.0 calls    4233ms  $0.0082  loaded=50%  skills/turn=0.5
+tier 2   n=10    2.0 calls    5040ms  $0.0085  loaded=30%  skills/turn=0.5
+tier 3   n=10    2.5 calls    7462ms  $0.0120  loaded=80%  skills/turn=2.1
+tier 4   n=10    2.4 calls    6028ms  $0.0113  loaded=50%  skills/turn=1.7
+
+== baseline-claude-sonnet-5  (n=50, unpriced calls=0, outcomes={'ACHIEVED': 28, 'AWAITING': 1, 'PARTIAL': 21})
+metric                    mean         p50
+llm_calls                  3.4         3.0
+llm_ms                 16124.6     13263.8
+total_ms               16130.6     13267.9
+tool_ms                    0.8         0.6
+tokens_in              16555.9     13867.0
+tokens_out              1111.6       885.5
+cost                  0.044228    0.039159
+load_skill_calls           1.8         1.5
+cost total              2.2114
+
+== baseline-claude-sonnet-5 by designed tier   (n | llm_calls | llm_ms | cost | loaded any skill | skills/turn)
+tier 0   n=10    1.5 calls    4106ms  $0.0139  loaded=0%  skills/turn=0.0
+tier 1   n=10    3.5 calls   11030ms  $0.0369  loaded=100%  skills/turn=1.0
+tier 2   n=10    3.1 calls   16105ms  $0.0403  loaded=60%  skills/turn=1.1
+tier 3   n=10    3.5 calls   22266ms  $0.0529  loaded=100%  skills/turn=3.0
+tier 4   n=10    5.3 calls   27115ms  $0.0771  loaded=100%  skills/turn=3.9
+
+== per case: base -> other   (llm_calls | llm_ms | cost | skills jaccard)
+t0-wallet     1.0 -> 1.0     2028 -> 3492     0.00365 -> 0.01000    J=1.00  [] vs []
+t0-weather    2.0 -> 2.0     2390 -> 4721     0.00723 -> 0.01781    J=1.00  [] vs []
+t1-faucet     2.0 -> 4.0     5291 -> 10271    0.00871 -> 0.04027    J=1.00  ['fixing-things'] vs ['fixing-things']
+t1-thermo     2.0 -> 3.0     3175 -> 11789    0.00769 -> 0.03351    J=0.00  [] vs ['the-thermostat']
+t2-cold-kids  2.0 -> 2.4     5295 -> 10392    0.00827 -> 0.02694    J=1.00  [] vs []
+t2-roadtrip   2.0 -> 3.8     4785 -> 21818    0.00872 -> 0.05371    J=0.50  ['road-trips'] vs ['money-decisions', 'road-trips']
+t3-cookout    2.6 -> 4.6     8201 -> 26859    0.01310 -> 0.07104    J=0.75  ['grilling', 'hosting', 'yard-work'] vs ['grilling', 'hosting', 'money-decisions', 'yard-work']
+t3-snow-day   2.4 -> 2.4     6722 -> 17673    0.01098 -> 0.03473    J=1.00  ['breaking-up-fights', 'snow-shoveling'] vs ['breaking-up-fights', 'snow-shoveling']
+t4-host       3.2 -> 5.6     8897 -> 27434    0.01619 -> 0.08000    J=1.00  ['grilling', 'hosting', 'money-decisions', 'yard-work'] vs ['grilling', 'hosting', 'money-decisions', 'yard-work']
+t4-twelve     1.6 -> 5.0     3159 -> 26796    0.00633 -> 0.07425    J=0.00  [] vs ['grilling', 'hosting', 'money-decisions', 'yard-work']
+
+== overall deltas (other - base, means)
+llm_calls_delta         1.300
+llm_ms_delta            11130.286
+total_ms_delta          11132.020
+tool_ms_delta           0.358
+tokens_in_delta         9155.360
+tokens_out_delta        774.360
+cost_delta              0.035141
+load_skill_calls_delta  0.840
+skill_jaccard_mean      0.725

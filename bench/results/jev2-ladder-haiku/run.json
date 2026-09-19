@@ -1,0 +1,10 @@
+{
+ "arm": "jev-triggers-claude-haiku-4-5-20251001",
+ "base_arm": "jev-triggers",
+ "corpus": "ladder",
+ "repeats": 5,
+ "cases": 10,
+ "dry": false,
+ "model": "claude-haiku-4-5-20251001",
+ "started_at": "20260919T113819Z"
+}

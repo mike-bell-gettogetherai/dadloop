@@ -1,0 +1,419 @@
+# Jev A/B report, regenerated 2026-09-19T12:02:55Z: baseline vs jev v1 vs jev v2 (triggers + composition); Jev priced $0.042/MTok input, output free
+
+######## ladder-haiku/baseline-claude-haiku-4-5-20251001 -> jev-ladder-haiku/jev-claude-haiku-4-5-20251001
+
+== baseline-claude-haiku-4-5-20251001  (n=50, unpriced calls=0, hit ceiling=0%, outcomes={'ACHIEVED': 36, 'AWAITING': 3, 'PARTIAL': 11})
+metric                    mean         p50
+llm_calls                  2.1         2.0
+llm_ms                  4994.3      4944.5
+total_ms                4998.6      4947.4
+tool_ms                    0.4         0.4
+tokens_in               7400.5      6844.0
+tokens_out               337.2       317.0
+cost                  0.009087    0.008367
+preselect_cost        0.000000    0.000000
+total_cost            0.009087    0.008367
+load_skill_calls           1.0         0.0
+preselect_ms                 -           -
+cost total              0.4543   (Claude)
+selector total          0.0000   (Jev, $0.042/MTok in, output free)
+grand total             0.4543
+
+== baseline-claude-haiku-4-5-20251001 by designed tier   (n | llm_calls | llm_ms | cost | loaded any skill | skills/turn)
+tier 0   n=10    1.5 calls    2209ms  $0.0054  loaded=0%  skills/turn=0.0  ceiling=0%
+tier 1   n=10    2.0 calls    4233ms  $0.0082  loaded=50%  skills/turn=0.5  ceiling=0%
+tier 2   n=10    2.0 calls    5040ms  $0.0085  loaded=30%  skills/turn=0.5  ceiling=0%
+tier 3   n=10    2.5 calls    7462ms  $0.0120  loaded=80%  skills/turn=2.1  ceiling=0%
+tier 4   n=10    2.4 calls    6028ms  $0.0113  loaded=50%  skills/turn=1.7  ceiling=0%
+
+== jev-claude-haiku-4-5-20251001  (n=50, unpriced calls=0, hit ceiling=0%, outcomes={'ACHIEVED': 27, 'AWAITING': 2, 'PARTIAL': 21})
+metric                    mean         p50
+llm_calls                  2.0         2.0
+llm_ms                  5372.0      5499.7
+total_ms                5375.9      5502.4
+tool_ms                    0.4         0.2
+tokens_in               7603.8      7185.0
+tokens_out               337.4       345.0
+cost                  0.009291    0.009033
+preselect_cost        0.000043    0.000043
+total_cost            0.009334    0.009076
+load_skill_calls           0.4         0.0
+preselect_ms             385.7       360.6
+cost total              0.4645   (Claude)
+selector total          0.0022   (Jev, $0.042/MTok in, output free)
+grand total             0.4667
+
+== jev-claude-haiku-4-5-20251001 by designed tier   (n | llm_calls | llm_ms | cost | loaded any skill | skills/turn)
+tier 0   n=10    1.5 calls    1843ms  $0.0054  loaded=0%  skills/turn=0.0  ceiling=0%
+tier 1   n=10    2.1 calls    5589ms  $0.0087  loaded=10%  skills/turn=0.1  ceiling=0%
+tier 2   n=10    2.0 calls    5532ms  $0.0088  loaded=40%  skills/turn=0.4  ceiling=0%
+tier 3   n=10    2.1 calls    6812ms  $0.0108  loaded=30%  skills/turn=0.5  ceiling=0%
+tier 4   n=10    2.5 calls    7083ms  $0.0127  loaded=40%  skills/turn=1.0  ceiling=0%
+
+== per case: base -> other   (llm_calls | llm_ms | cost | skills jaccard)
+t0-wallet     1.0 -> 1.0     2028 -> 1657     0.00365 -> 0.00364    J=1.00  [] vs []
+t0-weather    2.0 -> 2.0     2390 -> 2029     0.00723 -> 0.00715    J=1.00  [] vs []
+t1-faucet     2.0 -> 2.2     5291 -> 6843     0.00871 -> 0.00989    J=1.00  ['fixing-things'] vs ['fixing-things']
+t1-thermo     2.0 -> 2.0     3175 -> 4335     0.00769 -> 0.00758    J=1.00  [] vs []
+t2-cold-kids  2.0 -> 2.0     5295 -> 5498     0.00827 -> 0.00821    J=1.00  [] vs []
+t2-roadtrip   2.0 -> 2.0     4785 -> 5567     0.00872 -> 0.00948    J=0.33  ['road-trips'] vs ['answering-big-questions', 'money-decisions', 'road-trips']
+t3-cookout    2.6 -> 2.2     8201 -> 7421     0.01310 -> 0.01178    J=0.60  ['grilling', 'hosting', 'yard-work'] vs ['grilling', 'grocery-runs', 'hosting', 'money-decisions', 'yard-work']
+t3-snow-day   2.4 -> 2.0     6722 -> 6202     0.01098 -> 0.00985    J=0.67  ['breaking-up-fights', 'snow-shoveling'] vs ['breaking-up-fights', 'snow-shoveling', 'yard-work']
+t4-host       3.2 -> 3.0     8897 -> 9477     0.01619 -> 0.01629    J=0.60  ['grilling', 'hosting', 'money-decisions', 'yard-work'] vs ['grilling', 'grocery-runs', 'hosting', 'yard-work']
+t4-twelve     1.6 -> 2.0     3159 -> 4688     0.00633 -> 0.00904    J=0.00  [] vs ['hosting', 'money-decisions']
+
+== overall deltas (other - base, means)
+llm_calls_delta         -0.040
+llm_ms_delta            377.676
+total_ms_delta          377.308
+tool_ms_delta           -0.012
+tokens_in_delta         203.280
+tokens_out_delta        0.160
+cost_delta              0.000204
+preselect_cost_delta    0.000043
+total_cost_delta        0.000247
+load_skill_calls_delta  -0.560
+skill_jaccard_mean      0.720
+
+######## ladder-haiku/baseline-claude-haiku-4-5-20251001 -> jev2-ladder-haiku/jev-triggers-claude-haiku-4-5-20251001
+
+== baseline-claude-haiku-4-5-20251001  (n=50, unpriced calls=0, hit ceiling=0%, outcomes={'ACHIEVED': 36, 'AWAITING': 3, 'PARTIAL': 11})
+metric                    mean         p50
+llm_calls                  2.1         2.0
+llm_ms                  4994.3      4944.5
+total_ms                4998.6      4947.4
+tool_ms                    0.4         0.4
+tokens_in               7400.5      6844.0
+tokens_out               337.2       317.0
+cost                  0.009087    0.008367
+preselect_cost        0.000000    0.000000
+total_cost            0.009087    0.008367
+load_skill_calls           1.0         0.0
+preselect_ms                 -           -
+cost total              0.4543   (Claude)
+selector total          0.0000   (Jev, $0.042/MTok in, output free)
+grand total             0.4543
+
+== baseline-claude-haiku-4-5-20251001 by designed tier   (n | llm_calls | llm_ms | cost | loaded any skill | skills/turn)
+tier 0   n=10    1.5 calls    2209ms  $0.0054  loaded=0%  skills/turn=0.0  ceiling=0%
+tier 1   n=10    2.0 calls    4233ms  $0.0082  loaded=50%  skills/turn=0.5  ceiling=0%
+tier 2   n=10    2.0 calls    5040ms  $0.0085  loaded=30%  skills/turn=0.5  ceiling=0%
+tier 3   n=10    2.5 calls    7462ms  $0.0120  loaded=80%  skills/turn=2.1  ceiling=0%
+tier 4   n=10    2.4 calls    6028ms  $0.0113  loaded=50%  skills/turn=1.7  ceiling=0%
+
+== jev-triggers-claude-haiku-4-5-20251001  (n=50, unpriced calls=0, hit ceiling=0%, outcomes={'ACHIEVED': 33, 'AWAITING': 2, 'PARTIAL': 15})
+metric                    mean         p50
+llm_calls                  1.9         2.0
+llm_ms                  4882.5      4829.0
+total_ms                4886.0      4832.8
+tool_ms                    0.3         0.0
+tokens_in               7041.2      7140.5
+tokens_out               328.4       306.0
+cost                  0.008683    0.008667
+preselect_cost        0.000055    0.000055
+total_cost            0.008739    0.008723
+load_skill_calls           0.1         0.0
+preselect_ms             543.6       372.3
+cost total              0.4342   (Claude)
+selector total          0.0028   (Jev, $0.042/MTok in, output free)
+grand total             0.4369
+
+== jev-triggers-claude-haiku-4-5-20251001 by designed tier   (n | llm_calls | llm_ms | cost | loaded any skill | skills/turn)
+tier 0   n=10    1.5 calls    1849ms  $0.0054  loaded=0%  skills/turn=0.0  ceiling=0%
+tier 1   n=10    1.7 calls    3769ms  $0.0074  loaded=0%  skills/turn=0.0  ceiling=0%
+tier 2   n=10    1.7 calls    4411ms  $0.0074  loaded=10%  skills/turn=0.1  ceiling=0%
+tier 3   n=10    2.2 calls    6919ms  $0.0111  loaded=30%  skills/turn=0.5  ceiling=0%
+tier 4   n=10    2.3 calls    7465ms  $0.0122  loaded=0%  skills/turn=0.0  ceiling=0%
+
+== per case: base -> other   (llm_calls | llm_ms | cost | skills jaccard)
+t0-wallet     1.0 -> 1.0     2028 -> 1596     0.00365 -> 0.00362    J=1.00  [] vs []
+t0-weather    2.0 -> 2.0     2390 -> 2102     0.00723 -> 0.00719    J=1.00  [] vs []
+t1-faucet     2.0 -> 2.0     5291 -> 4931     0.00871 -> 0.00893    J=1.00  ['fixing-things'] vs ['fixing-things']
+t1-thermo     2.0 -> 1.4     3175 -> 2606     0.00769 -> 0.00578    J=0.00  [] vs ['the-thermostat']
+t2-cold-kids  2.0 -> 2.0     5295 -> 4813     0.00827 -> 0.00843    J=0.00  [] vs ['teaching-kids-stuff']
+t2-roadtrip   2.0 -> 1.4     4785 -> 4008     0.00872 -> 0.00643    J=0.50  ['road-trips'] vs ['money-decisions', 'road-trips']
+t3-cookout    2.6 -> 2.4     8201 -> 8318     0.01310 -> 0.01275    J=0.75  ['grilling', 'hosting', 'yard-work'] vs ['grilling', 'hosting', 'money-decisions', 'yard-work']
+t3-snow-day   2.4 -> 2.0     6722 -> 5520     0.01098 -> 0.00938    J=1.00  ['breaking-up-fights', 'snow-shoveling'] vs ['breaking-up-fights', 'snow-shoveling']
+t4-host       3.2 -> 2.6     8897 -> 9271     0.01619 -> 0.01431    J=1.00  ['grilling', 'hosting', 'money-decisions', 'yard-work'] vs ['grilling', 'hosting', 'money-decisions', 'yard-work']
+t4-twelve     1.6 -> 2.0     3159 -> 5660     0.00633 -> 0.01000    J=0.00  [] vs ['grilling', 'hosting', 'money-decisions', 'yard-work']
+
+== overall deltas (other - base, means)
+llm_calls_delta         -0.200
+llm_ms_delta            -111.760
+total_ms_delta          -112.556
+tool_ms_delta           -0.174
+tokens_in_delta         -359.340
+tokens_out_delta        -8.820
+cost_delta              -0.000403
+preselect_cost_delta    0.000055
+total_cost_delta        -0.000348
+load_skill_calls_delta  -0.840
+skill_jaccard_mean      0.625
+
+######## ladder-sonnet/baseline-claude-sonnet-5 -> jev-ladder-sonnet/jev-claude-sonnet-5
+
+== baseline-claude-sonnet-5  (n=50, unpriced calls=0, hit ceiling=0%, outcomes={'ACHIEVED': 28, 'AWAITING': 1, 'PARTIAL': 21})
+metric                    mean         p50
+llm_calls                  3.4         3.0
+llm_ms                 16124.6     13263.8
+total_ms               16130.6     13267.9
+tool_ms                    0.8         0.6
+tokens_in              16555.9     13867.0
+tokens_out              1111.6       885.5
+cost                  0.044228    0.039159
+preselect_cost        0.000000    0.000000
+total_cost            0.044228    0.039159
+load_skill_calls           1.8         1.5
+preselect_ms                 -           -
+cost total              2.2114   (Claude)
+selector total          0.0000   (Jev, $0.042/MTok in, output free)
+grand total             2.2114
+
+== baseline-claude-sonnet-5 by designed tier   (n | llm_calls | llm_ms | cost | loaded any skill | skills/turn)
+tier 0   n=10    1.5 calls    4106ms  $0.0139  loaded=0%  skills/turn=0.0  ceiling=0%
+tier 1   n=10    3.5 calls   11030ms  $0.0369  loaded=100%  skills/turn=1.0  ceiling=0%
+tier 2   n=10    3.1 calls   16105ms  $0.0403  loaded=60%  skills/turn=1.1  ceiling=0%
+tier 3   n=10    3.5 calls   22266ms  $0.0529  loaded=100%  skills/turn=3.0  ceiling=0%
+tier 4   n=10    5.3 calls   27115ms  $0.0771  loaded=100%  skills/turn=3.9  ceiling=0%
+
+== jev-claude-sonnet-5  (n=50, unpriced calls=0, hit ceiling=0%, outcomes={'ACHIEVED': 30, 'PARTIAL': 20})
+metric                    mean         p50
+llm_calls                  2.9         3.0
+llm_ms                 15185.3     13671.6
+total_ms               15191.2     13674.7
+tool_ms                    0.7         0.6
+tokens_in              14535.6     13258.5
+tokens_out              1039.4       899.5
+cost                  0.039465    0.033353
+preselect_cost        0.000043    0.000043
+total_cost            0.039508    0.033396
+load_skill_calls           0.5         0.0
+preselect_ms             464.4       381.1
+cost total              1.9732   (Claude)
+selector total          0.0022   (Jev, $0.042/MTok in, output free)
+grand total             1.9754
+
+== jev-claude-sonnet-5 by designed tier   (n | llm_calls | llm_ms | cost | loaded any skill | skills/turn)
+tier 0   n=10    1.5 calls    3918ms  $0.0140  loaded=0%  skills/turn=0.0  ceiling=0%
+tier 1   n=10    3.1 calls    9819ms  $0.0334  loaded=50%  skills/turn=0.5  ceiling=0%
+tier 2   n=10    3.0 calls   17839ms  $0.0415  loaded=50%  skills/turn=0.5  ceiling=0%
+tier 3   n=10    2.9 calls   20509ms  $0.0458  loaded=0%  skills/turn=0.0  ceiling=0%
+tier 4   n=10    4.0 calls   23842ms  $0.0627  loaded=80%  skills/turn=1.5  ceiling=0%
+
+== per case: base -> other   (llm_calls | llm_ms | cost | skills jaccard)
+t0-wallet     1.0 -> 1.0     3492 -> 3909     0.01000 -> 0.01015    J=1.00  [] vs []
+t0-weather    2.0 -> 2.0     4721 -> 3926     0.01781 -> 0.01778    J=1.00  [] vs []
+t1-faucet     4.0 -> 3.2    10271 -> 10202    0.04027 -> 0.03563    J=1.00  ['fixing-things'] vs ['fixing-things']
+t1-thermo     3.0 -> 3.0    11789 -> 9435     0.03351 -> 0.03111    J=1.00  ['the-thermostat'] vs ['the-thermostat']
+t2-cold-kids  2.4 -> 2.6    10392 -> 11983    0.02694 -> 0.02980    J=1.00  [] vs []
+t2-roadtrip   3.8 -> 3.4    21818 -> 23695    0.05371 -> 0.05313    J=0.67  ['money-decisions', 'road-trips'] vs ['answering-big-questions', 'money-decisions', 'road-trips']
+t3-cookout    4.6 -> 3.8    26859 -> 24918    0.07104 -> 0.06234    J=0.80  ['grilling', 'hosting', 'money-decisions', 'yard-work'] vs ['grilling', 'grocery-runs', 'hosting', 'money-decisions', 'yard-work']
+t3-snow-day   2.4 -> 2.0    17673 -> 16100    0.03473 -> 0.02924    J=0.67  ['breaking-up-fights', 'snow-shoveling'] vs ['breaking-up-fights', 'snow-shoveling', 'yard-work']
+t4-host       5.6 -> 4.4    27434 -> 24568    0.08000 -> 0.06788    J=0.80  ['grilling', 'hosting', 'money-decisions', 'yard-work'] vs ['grilling', 'grocery-runs', 'hosting', 'money-decisions', 'yard-work']
+t4-twelve     5.0 -> 3.6    26796 -> 23116    0.07425 -> 0.05759    J=1.00  ['grilling', 'hosting', 'money-decisions', 'yard-work'] vs ['grilling', 'hosting', 'money-decisions', 'yard-work']
+
+== overall deltas (other - base, means)
+llm_calls_delta         -0.480
+llm_ms_delta            -939.336
+total_ms_delta          -939.410
+tool_ms_delta           -0.140
+tokens_in_delta         -2020.320
+tokens_out_delta        -72.220
+cost_delta              -0.004763
+preselect_cost_delta    0.000043
+total_cost_delta        -0.004720
+load_skill_calls_delta  -1.300
+skill_jaccard_mean      0.893
+
+######## ladder-sonnet/baseline-claude-sonnet-5 -> jev2-ladder-sonnet/jev-triggers-claude-sonnet-5
+
+== baseline-claude-sonnet-5  (n=50, unpriced calls=0, hit ceiling=0%, outcomes={'ACHIEVED': 28, 'AWAITING': 1, 'PARTIAL': 21})
+metric                    mean         p50
+llm_calls                  3.4         3.0
+llm_ms                 16124.6     13263.8
+total_ms               16130.6     13267.9
+tool_ms                    0.8         0.6
+tokens_in              16555.9     13867.0
+tokens_out              1111.6       885.5
+cost                  0.044228    0.039159
+preselect_cost        0.000000    0.000000
+total_cost            0.044228    0.039159
+load_skill_calls           1.8         1.5
+preselect_ms                 -           -
+cost total              2.2114   (Claude)
+selector total          0.0000   (Jev, $0.042/MTok in, output free)
+grand total             2.2114
+
+== baseline-claude-sonnet-5 by designed tier   (n | llm_calls | llm_ms | cost | loaded any skill | skills/turn)
+tier 0   n=10    1.5 calls    4106ms  $0.0139  loaded=0%  skills/turn=0.0  ceiling=0%
+tier 1   n=10    3.5 calls   11030ms  $0.0369  loaded=100%  skills/turn=1.0  ceiling=0%
+tier 2   n=10    3.1 calls   16105ms  $0.0403  loaded=60%  skills/turn=1.1  ceiling=0%
+tier 3   n=10    3.5 calls   22266ms  $0.0529  loaded=100%  skills/turn=3.0  ceiling=0%
+tier 4   n=10    5.3 calls   27115ms  $0.0771  loaded=100%  skills/turn=3.9  ceiling=0%
+
+== jev-triggers-claude-sonnet-5  (n=50, unpriced calls=0, hit ceiling=0%, outcomes={'ACHIEVED': 30, 'PARTIAL': 20})
+metric                    mean         p50
+llm_calls                  2.9         2.5
+llm_ms                 15762.7     16006.1
+total_ms               15767.8     16011.0
+tool_ms                    0.5         0.4
+tokens_in              14675.3     11706.0
+tokens_out              1045.3      1064.5
+cost                  0.039803    0.033071
+preselect_cost        0.000055    0.000055
+total_cost            0.039859    0.033126
+load_skill_calls           0.0         0.0
+preselect_ms             435.0       365.2
+cost total              1.9902   (Claude)
+selector total          0.0028   (Jev, $0.042/MTok in, output free)
+grand total             1.9929
+
+== jev-triggers-claude-sonnet-5 by designed tier   (n | llm_calls | llm_ms | cost | loaded any skill | skills/turn)
+tier 0   n=10    1.5 calls    5179ms  $0.0140  loaded=0%  skills/turn=0.0  ceiling=0%
+tier 1   n=10    2.8 calls   12339ms  $0.0340  loaded=0%  skills/turn=0.0  ceiling=0%
+tier 2   n=10    2.7 calls   14640ms  $0.0356  loaded=0%  skills/turn=0.0  ceiling=0%
+tier 3   n=10    3.1 calls   21239ms  $0.0478  loaded=0%  skills/turn=0.0  ceiling=0%
+tier 4   n=10    4.3 calls   25416ms  $0.0675  loaded=0%  skills/turn=0.0  ceiling=0%
+
+== per case: base -> other   (llm_calls | llm_ms | cost | skills jaccard)
+t0-wallet     1.0 -> 1.0     3492 -> 5875     0.01000 -> 0.01042    J=1.00  [] vs []
+t0-weather    2.0 -> 2.0     4721 -> 4483     0.01781 -> 0.01764    J=1.00  [] vs []
+t1-faucet     4.0 -> 3.6    10271 -> 16572    0.04027 -> 0.04500    J=1.00  ['fixing-things'] vs ['fixing-things']
+t1-thermo     3.0 -> 2.0    11789 -> 8106     0.03351 -> 0.02302    J=1.00  ['the-thermostat'] vs ['the-thermostat']
+t2-cold-kids  2.4 -> 2.4    10392 -> 10785    0.02694 -> 0.02765    J=0.00  [] vs ['teaching-kids-stuff']
+t2-roadtrip   3.8 -> 3.0    21818 -> 18495    0.05371 -> 0.04364    J=1.00  ['money-decisions', 'road-trips'] vs ['money-decisions', 'road-trips']
+t3-cookout    4.6 -> 4.2    26859 -> 28209    0.07104 -> 0.06854    J=1.00  ['grilling', 'hosting', 'money-decisions', 'yard-work'] vs ['grilling', 'hosting', 'money-decisions', 'yard-work']
+t3-snow-day   2.4 -> 2.0    17673 -> 14269    0.03473 -> 0.02712    J=1.00  ['breaking-up-fights', 'snow-shoveling'] vs ['breaking-up-fights', 'snow-shoveling']
+t4-host       5.6 -> 4.4    27434 -> 27069    0.08000 -> 0.06882    J=1.00  ['grilling', 'hosting', 'money-decisions', 'yard-work'] vs ['grilling', 'hosting', 'money-decisions', 'yard-work']
+t4-twelve     5.0 -> 4.2    26796 -> 23763    0.07425 -> 0.06618    J=1.00  ['grilling', 'hosting', 'money-decisions', 'yard-work'] vs ['grilling', 'hosting', 'money-decisions', 'yard-work']
+
+== overall deltas (other - base, means)
+llm_calls_delta         -0.500
+llm_ms_delta            -361.912
+total_ms_delta          -362.816
+tool_ms_delta           -0.312
+tokens_in_delta         -1880.620
+tokens_out_delta        -66.300
+cost_delta              -0.004424
+preselect_cost_delta    0.000055
+total_cost_delta        -0.004369
+load_skill_calls_delta  -1.800
+skill_jaccard_mean      0.900
+
+######## stress-haiku/baseline-claude-haiku-4-5-20251001 -> jev2-stress-haiku/jev-triggers-claude-haiku-4-5-20251001
+
+== baseline-claude-haiku-4-5-20251001  (n=10, unpriced calls=0, hit ceiling=0%, outcomes={'PARTIAL': 4, 'ACHIEVED': 6})
+metric                    mean         p50
+llm_calls                  2.4         1.5
+llm_ms                 14252.3     12297.0
+total_ms               14258.3     12298.0
+tool_ms                    0.7         0.3
+tokens_in              10751.9      5645.5
+tokens_out              1071.2       883.5
+cost                  0.016108    0.010063
+preselect_cost        0.000000    0.000000
+total_cost            0.016108    0.010063
+load_skill_calls           3.6         3.0
+preselect_ms                 -           -
+cost total              0.1611   (Claude)
+selector total          0.0000   (Jev, $0.042/MTok in, output free)
+grand total             0.1611
+
+== baseline-claude-haiku-4-5-20251001 by designed tier   (n | llm_calls | llm_ms | cost | loaded any skill | skills/turn)
+tier 5   n=10    2.4 calls   14252ms  $0.0161  loaded=50%  skills/turn=3.6  ceiling=0%
+
+== jev-triggers-claude-haiku-4-5-20251001  (n=10, unpriced calls=0, hit ceiling=0%, outcomes={'PARTIAL': 5, 'ACHIEVED': 5})
+metric                    mean         p50
+llm_calls                  2.0         1.5
+llm_ms                 12182.9     11664.0
+total_ms               12187.9     11665.3
+tool_ms                    0.5         0.2
+tokens_in               9567.8      6263.0
+tokens_out               929.5       895.0
+cost                  0.014215    0.011206
+preselect_cost        0.000057    0.000057
+total_cost            0.014272    0.011262
+load_skill_calls           2.4         0.0
+preselect_ms             390.0       363.1
+cost total              0.1422   (Claude)
+selector total          0.0006   (Jev, $0.042/MTok in, output free)
+grand total             0.1427
+
+== jev-triggers-claude-haiku-4-5-20251001 by designed tier   (n | llm_calls | llm_ms | cost | loaded any skill | skills/turn)
+tier 5   n=10    2.0 calls   12183ms  $0.0142  loaded=40%  skills/turn=2.4  ceiling=0%
+
+== per case: base -> other   (llm_calls | llm_ms | cost | skills jaccard)
+s5-everything  1.0 -> 1.0     9411 -> 9243     0.00647 -> 0.00658    J=1.00  [] vs []
+s5-heavy-day  3.8 -> 3.0    19094 -> 15123    0.02575 -> 0.02186    J=0.88  ['bedtime', 'breaking-up-fights', 'comforting-a-kid', 'grilling', 'hosting', 'money-decisions', 'yard-work'] vs ['bedtime', 'breaking-up-fights', 'comforting-a-kid', 'grilling', 'hosting', 'money-decisions', 'saying-no', 'yard-work']
+
+== overall deltas (other - base, means)
+llm_calls_delta         -0.400
+llm_ms_delta            -2069.400
+total_ms_delta          -2070.410
+tool_ms_delta           -0.200
+tokens_in_delta         -1184.100
+tokens_out_delta        -141.700
+cost_delta              -0.001893
+preselect_cost_delta    0.000057
+total_cost_delta        -0.001836
+load_skill_calls_delta  -1.200
+skill_jaccard_mean      0.938
+
+######## stress-sonnet/baseline-claude-sonnet-5 -> jev2-stress-sonnet/jev-triggers-claude-sonnet-5
+
+== baseline-claude-sonnet-5  (n=10, unpriced calls=0, hit ceiling=0%, outcomes={'PARTIAL': 5, 'ACHIEVED': 5})
+metric                    mean         p50
+llm_calls                  2.8         2.5
+llm_ms                 23136.4     22579.5
+total_ms               23142.9     22584.9
+tool_ms                    0.8         0.7
+tokens_in              16860.8     14385.5
+tokens_out              1852.2      1774.5
+cost                  0.052244    0.047125
+preselect_cost        0.000000    0.000000
+total_cost            0.052244    0.047125
+load_skill_calls           4.3         4.0
+preselect_ms                 -           -
+cost total              0.5224   (Claude)
+selector total          0.0000   (Jev, $0.042/MTok in, output free)
+grand total             0.5224
+
+== baseline-claude-sonnet-5 by designed tier   (n | llm_calls | llm_ms | cost | loaded any skill | skills/turn)
+tier 5   n=10    2.8 calls   23136ms  $0.0522  loaded=50%  skills/turn=4.2  ceiling=0%
+
+== jev-triggers-claude-sonnet-5  (n=10, unpriced calls=0, hit ceiling=0%, outcomes={'PARTIAL': 5, 'ACHIEVED': 5})
+metric                    mean         p50
+llm_calls                  2.3         2.0
+llm_ms                 21787.1     20332.8
+total_ms               21791.5     20336.8
+tool_ms                    0.5         0.3
+tokens_in              13433.9     11355.5
+tokens_out              1522.7      1412.0
+cost                  0.042095    0.037276
+preselect_cost        0.000057    0.000057
+total_cost            0.042152    0.037333
+load_skill_calls           0.0         0.0
+preselect_ms             502.7       396.8
+cost total              0.4209   (Claude)
+selector total          0.0006   (Jev, $0.042/MTok in, output free)
+grand total             0.4215
+
+== jev-triggers-claude-sonnet-5 by designed tier   (n | llm_calls | llm_ms | cost | loaded any skill | skills/turn)
+tier 5   n=10    2.3 calls   21787ms  $0.0421  loaded=0%  skills/turn=0.0  ceiling=0%
+
+== per case: base -> other   (llm_calls | llm_ms | cost | skills jaccard)
+s5-everything  1.0 -> 1.0    13878 -> 14399    0.01831 -> 0.01832    J=1.00  [] vs []
+s5-heavy-day  4.6 -> 3.6    32395 -> 29176    0.08617 -> 0.06587    J=1.00  ['bedtime', 'breaking-up-fights', 'comforting-a-kid', 'grilling', 'hosting', 'money-decisions', 'saying-no', 'yard-work'] vs ['bedtime', 'breaking-up-fights', 'comforting-a-kid', 'grilling', 'hosting', 'money-decisions', 'saying-no', 'yard-work']
+
+== overall deltas (other - base, means)
+llm_calls_delta         -0.500
+llm_ms_delta            -1349.260
+total_ms_delta          -1351.330
+tool_ms_delta           -0.390
+tokens_in_delta         -3426.900
+tokens_out_delta        -329.500
+cost_delta              -0.010149
+preselect_cost_delta    0.000057
+total_cost_delta        -0.010092
+load_skill_calls_delta  -4.300
+skill_jaccard_mean      1.000

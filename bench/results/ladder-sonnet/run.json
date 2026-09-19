@@ -1,0 +1,10 @@
+{
+ "arm": "baseline-claude-sonnet-5",
+ "base_arm": "baseline",
+ "corpus": "ladder",
+ "repeats": 5,
+ "cases": 10,
+ "dry": false,
+ "model": "claude-sonnet-5",
+ "started_at": "20260919T031444Z"
+}

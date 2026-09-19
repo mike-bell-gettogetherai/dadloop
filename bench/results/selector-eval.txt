@@ -1,0 +1,70 @@
+truth: 12 cases from 2 file(s); composition map: {'hosting': ['money-decisions', 'grilling', 'yard-work']}
+
+== A description + 'require'   (206 ms/prompt, 1036 Jev tokens in/prompt)
+   t=0.4  jaccard=0.63  skills/prompt=2.7
+   t=0.5  jaccard=0.71  skills/prompt=2.2
+   t=0.6  jaccard=0.72  skills/prompt=1.8
+      t0-weather     J=1.00
+      t0-wallet      J=1.00
+      t1-thermo      J=0.00  miss=['the-thermostat'] extra=[]
+      t1-faucet      J=1.00
+      t2-roadtrip    J=0.25  miss=['road-trips'] extra=['answering-big-questions', 'saying-no']
+      t2-cold-kids   J=1.00
+      t3-cookout     J=0.80  miss=[] extra=['grocery-runs']
+      t3-snow-day    J=0.67  miss=[] extra=['yard-work']
+      t4-host        J=0.40  miss=['money-decisions', 'yard-work'] extra=['grocery-runs']
+      t4-twelve      J=0.50  miss=['grilling', 'yard-work'] extra=[]
+      s5-heavy-day   J=0.89  miss=[] extra=['grocery-runs']
+      s5-everything  J=1.00
+
+== B description + 'about'   (197 ms/prompt, 828 Jev tokens in/prompt)
+   t=0.4  jaccard=0.59  skills/prompt=0.9
+   t=0.5  jaccard=0.61  skills/prompt=0.8
+   t=0.6  jaccard=0.61  skills/prompt=0.8
+      t0-weather     J=1.00
+      t0-wallet      J=1.00
+      t1-thermo      J=0.00  miss=['the-thermostat'] extra=[]
+      t1-faucet      J=1.00
+      t2-roadtrip    J=0.50  miss=['road-trips'] extra=[]
+      t2-cold-kids   J=1.00
+      t3-cookout     J=0.50  miss=['grilling', 'money-decisions'] extra=[]
+      t3-snow-day    J=0.50  miss=['breaking-up-fights'] extra=[]
+      t4-host        J=0.25  miss=['grilling', 'money-decisions', 'yard-work'] extra=[]
+      t4-twelve      J=0.50  miss=['grilling', 'yard-work'] extra=[]
+      s5-heavy-day   J=0.12  miss=['bedtime', 'breaking-up-fights', 'comforting-a-kid', 'grilling', 'money-decisions', 'saying-no', 'yard-work'] extra=[]
+      s5-everything  J=1.00
+
+== C triggers + criteria   (205 ms/prompt, 1290 Jev tokens in/prompt)
+   t=0.4  jaccard=0.75  skills/prompt=2.1
+   t=0.5  jaccard=0.74  skills/prompt=1.8
+   t=0.6  jaccard=0.71  skills/prompt=1.7
+      t0-weather     J=1.00
+      t0-wallet      J=0.00  miss=[] extra=['money-decisions']
+      t1-thermo      J=1.00
+      t1-faucet      J=1.00
+      t2-roadtrip    J=1.00
+      t2-cold-kids   J=0.00  miss=[] extra=['teaching-kids-stuff']
+      t3-cookout     J=1.00
+      t3-snow-day    J=1.00
+      t4-host        J=0.50  miss=['money-decisions', 'yard-work'] extra=[]
+      t4-twelve      J=0.75  miss=['yard-work'] extra=[]
+      s5-heavy-day   J=0.62  miss=['grilling', 'money-decisions', 'saying-no'] extra=[]
+      s5-everything  J=1.00
+
+== D triggers + composition   (200 ms/prompt, 1290 Jev tokens in/prompt)
+   t=0.4  jaccard=0.80  skills/prompt=2.4
+   t=0.5  jaccard=0.82  skills/prompt=2.2
+   t=0.6  jaccard=0.81  skills/prompt=2.2
+      t0-weather     J=1.00
+      t0-wallet      J=0.00  miss=[] extra=['money-decisions']
+      t1-thermo      J=1.00
+      t1-faucet      J=1.00
+      t2-roadtrip    J=1.00
+      t2-cold-kids   J=0.00  miss=[] extra=['teaching-kids-stuff']
+      t3-cookout     J=1.00
+      t3-snow-day    J=1.00
+      t4-host        J=1.00
+      t4-twelve      J=1.00
+      s5-heavy-day   J=0.88  miss=['saying-no'] extra=[]
+      s5-everything  J=1.00
+
