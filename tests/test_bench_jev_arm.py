@@ -133,6 +133,15 @@ def test_triggers_cover_every_skill():
     print("PASS: every skill has selector-facing triggers with a positive and a negative")
 
 
+def test_jev_triggers_arm_is_registered_with_composition():
+    from bench.run import ARMS, DRY
+    assert "jev-triggers" in ARMS and "jev-triggers" in DRY
+    dad = DRY["jev-triggers"](Path(tempfile.mkdtemp()) / "m")
+    assert dad.preselector.triggers and dad.preselector.composes.get("hosting"), "arm must carry triggers and the body-derived composition"
+    assert "{about}" in dad.preselector.question
+    print("PASS: jev-triggers arm carries triggers, the about-question, and composition")
+
+
 if __name__ == "__main__":
     test_chosen_bodies_reach_the_system_prompt_and_baseline_stays_clean()
     test_preselect_is_journaled_and_lands_on_the_row()
@@ -141,3 +150,4 @@ if __name__ == "__main__":
     test_question_template_and_criteria_reach_jev()
     test_composition_is_derived_from_skill_bodies()
     test_triggers_cover_every_skill()
+    test_jev_triggers_arm_is_registered_with_composition()

@@ -86,8 +86,38 @@ def _dry_jev(memory_root: Path) -> AgentLoop:
     return dad
 
 
+def _triggers_kwargs() -> dict:
+    from dadloop.core import skills as skill_lib
+    from .selector_eval import ABOUT_QUESTION
+    from .triggers import TRIGGERS, composes_from_bodies
+    return {"question": ABOUT_QUESTION, "triggers": TRIGGERS, "composes": composes_from_bodies(skill_lib.SKILLS)}
+
+
+def _live_jev_triggers(memory_root: Path) -> AgentLoop:
+    """The selector after the wording pass: selector-facing triggers with
+    absence-phrased negatives, the 'about' question, and composition expanded
+    in code from the skill bodies. Everything else identical to `jev`."""
+    from typesafe_sdk import TypeSafeClient
+    from .jev_arm import JevAgent, Preselector
+    return JevAgent(Context(memory=SemanticMemory(memory_root)),
+                    preselector=Preselector(TypeSafeClient(), threshold=0.5, **_triggers_kwargs()))
+
+
+def _dry_jev_triggers(memory_root: Path) -> AgentLoop:
+    from .jev_arm import JevAgent, Preselector
+    class FakeTS:
+        def system_one(self, *, state, questions, **kw):
+            return NS(model="jev-fake", usage=NS(input_tokens=100, output_tokens=15),
+                      answers={k: NS(noul=0.9 if k == "the-thermostat" else 0.05) for k in questions})
+    dad = JevAgent(Context(memory=SemanticMemory(memory_root)),
+                   preselector=Preselector(FakeTS(), **_triggers_kwargs()))
+    dad._client = _dry_baseline(memory_root)._client
+    return dad
+
+
 ARMS["jev"] = _live_jev
-DRY = {"baseline": _dry_baseline, "jev": _dry_jev}
+ARMS["jev-triggers"] = _live_jev_triggers
+DRY = {"baseline": _dry_baseline, "jev": _dry_jev, "jev-triggers": _dry_jev_triggers}
 
 
 def main(argv: list[str] | None = None) -> int:
