@@ -74,8 +74,8 @@ TRIGGERS: dict[str, dict[str, str]] = {
         "false": "no trip or drive to another place is mentioned",
     },
     "saying-no": {
-        "about": "a kid asking permission for something the answer is probably no to",
-        "true": "a request to stay out late, buy something, or bend a house rule",
+        "about": "a kid or teenager wanting, asking, or pushing to do something Dad should refuse, such as staying out late",
+        "true": "any child wants or asks to stay out late, buy something, skip a rule, or get an exception, even as one item among many",
         "false": "no child is asking permission for anything",
     },
     "snow-shoveling": {
@@ -94,9 +94,9 @@ TRIGGERS: dict[str, dict[str, str]] = {
         "false": "no indoor temperature or thermostat change is asked for",
     },
     "yard-work": {
-        "about": "the lawn, the yard, mowing, or outdoor prep for something",
-        "true": "mowing, the yard being overgrown, getting the outside ready",
-        "false": "the lawn or yard is not mentioned and no outdoor prep is needed",
+        "about": "the lawn, the grass, the yard, or mowing",
+        "true": "mowing, the yard or grass being overgrown, tidying the yard before guests",
+        "false": "the lawn, grass, or yard is not mentioned; clearing snow from a driveway is not yard work",
     },
 }
 
