@@ -19,8 +19,21 @@ import sys
 from collections import Counter, defaultdict
 from pathlib import Path
 
+# TypeSafe's list price for Jev (2026-09): $0.042 per million INPUT tokens, output
+# tokens free. Snapshot, like the Claude table in core/trace.py; change it here.
+JEV_USD_PER_MTOK_IN = 0.042
+
 METRICS = ("llm_calls", "llm_ms", "total_ms", "tool_ms", "tokens_in", "tokens_out",
-           "cost", "load_skill_calls", "preselect_ms")
+           "cost", "preselect_cost", "total_cost", "load_skill_calls", "preselect_ms")
+
+
+def _with_selector_cost(rows: list[dict]) -> list[dict]:
+    """Rows with the selector priced and a total: Claude cost plus Jev cost."""
+    out = []
+    for r in rows:
+        pc = (r.get("preselect_tokens_in") or 0) / 1e6 * JEV_USD_PER_MTOK_IN
+        out.append({**r, "preselect_cost": pc, "total_cost": (r.get("cost") or 0.0) + pc})
+    return out
 
 
 def load_rows(path: Path) -> list[dict]:
@@ -35,6 +48,7 @@ def _stat(values: list[float]) -> dict:
 
 
 def summarize(rows: list[dict]) -> dict:
+    rows = _with_selector_cost(rows)
     out = {"n": len(rows)}
     for m in METRICS:
         out[m] = _stat([r.get(m) for r in rows])
@@ -84,6 +98,7 @@ def _jaccard(a: set, b: set) -> float:
 
 
 def compare(base: list[dict], other: list[dict]) -> dict:
+    base, other = _with_selector_cost(base), _with_selector_cost(other)
     b_cases, o_cases = _by_case(base), _by_case(other)
     per_case = {}
     for cid in sorted(set(b_cases) & set(o_cases)):
@@ -116,9 +131,11 @@ def print_summary(name: str, s: dict) -> None:
           f"hit ceiling={s['ceiling_rate']:.0%}, outcomes={s['outcomes']})")
     print(f"{'metric':<18}{'mean':>12}{'p50':>12}")
     for m in METRICS:
-        nd = 6 if m == "cost" else 1
+        nd = 6 if "cost" in m else 1
         print(f"{m:<18}{_fmt(s[m]['mean'], nd):>12}{_fmt(s[m]['p50'], nd):>12}")
-    print(f"{'cost total':<18}{_fmt(s['cost']['sum'], 4):>12}")
+    print(f"{'cost total':<18}{_fmt(s['cost']['sum'], 4):>12}   (Claude)")
+    print(f"{'selector total':<18}{_fmt(s['preselect_cost']['sum'], 4):>12}   (Jev, ${JEV_USD_PER_MTOK_IN}/MTok in, output free)")
+    print(f"{'grand total':<18}{_fmt(s['total_cost']['sum'], 4):>12}")
 
 
 def print_tiers(name: str, rows: list[dict]) -> None:
