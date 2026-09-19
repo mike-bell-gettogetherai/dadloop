@@ -453,10 +453,16 @@ class AgentLoop:
                         tools=toolkit.schemas(),
                         messages=self._messages,
                     )
+                    # Price at the rate of the model that actually answered:
+                    # the response echoes the resolved id (often dated), which
+                    # is the closest thing to "actual cost" the API offers.
+                    llm["model"] = getattr(resp, "model", None) or self.model
                     usage = getattr(resp, "usage", None)
                     if usage is not None:
                         llm["tokens_in"] = usage.input_tokens
                         llm["tokens_out"] = usage.output_tokens
+                        llm["cache_read"] = getattr(usage, "cache_read_input_tokens", 0) or 0
+                        llm["cache_write"] = getattr(usage, "cache_creation_input_tokens", 0) or 0
                 self._messages.append({"role": "assistant", "content": resp.content})
 
                 interim = "".join(b.text for b in resp.content if b.type == "text").strip()
@@ -586,13 +592,15 @@ class AgentLoop:
         if not loaded_skills:
             return
         try:
-            from .trace import _walk, _COST_PER_MTOK_IN, _COST_PER_MTOK_OUT
+            from .trace import _walk, turn_cost
             from .improve import OutcomeRecord, record_outcome
 
             spans = list(_walk(turn_span))
             tok_in = sum(s.attrs.get("tokens_in", 0) for s in spans)
             tok_out = sum(s.attrs.get("tokens_out", 0) for s in spans)
-            cost = tok_in / 1e6 * _COST_PER_MTOK_IN + tok_out / 1e6 * _COST_PER_MTOK_OUT
+            # Priced calls only. An unpriced model contributes 0 here, because
+            # cost is deliberately outside the health score (see improve.py).
+            cost, _unpriced = turn_cost(spans)
             tokens = tok_in + tok_out
             steps = len(plan.steps)
             done = sum(1 for s in plan.steps if s.done)

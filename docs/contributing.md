@@ -1,6 +1,6 @@
 <!--
 Author: Swami Chandrasekaran
-Last Modified: 2026-07-12
+Last Modified: 2026-09-18
 Purpose: Contributor guide for linting, testing, and extending dadloop.
 -->
 
@@ -51,6 +51,7 @@ worse than no test, because it implies coverage that is not there.
 | `test_plan.py` | stated plan and actual tool calls could silently drift |
 | `test_constitution.py` | the reply trimmer amputated warmth for coming last |
 | `test_skill_orchestration.py` | skills retrieved but did not compose |
+| `test_cost_per_model.py` | every dollar figure was priced at one hard-coded Sonnet rate, 3x too high on Haiku |
 
 If a change teaches a harness concept honestly, it belongs. If it is decoration that looks
 like a capability, it does not.
