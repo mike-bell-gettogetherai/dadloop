@@ -163,10 +163,59 @@ def test_cli_dry_run_end_to_end():
     out = Path(tempfile.mkdtemp())
     rc = main(["--arm", "baseline", "--repeats", "1", "--cases", "3", "--dry", "--out", str(out)])
     assert rc == 0
-    rows = [json.loads(l) for l in (out / "baseline.jsonl").read_text().splitlines() if l.strip()]
+    files = sorted(out.glob("baseline-*.jsonl"))          # arm file is model-qualified
+    assert len(files) == 1, list(out.iterdir())
+    rows = [json.loads(l) for l in files[0].read_text().splitlines() if l.strip()]
     assert len(rows) == 3 and all(r["llm_calls"] == 2 for r in rows), rows
     assert (out / "run.json").exists(), "the run manifest records arm, repeats, model, and started_at"
     print("PASS: --dry runs 3 cases offline end to end and writes the manifest")
+
+
+def test_ladder_has_two_prompts_per_tier():
+    from bench.prompts import LADDER
+    from dadloop.core import skills as skill_lib
+    tiers = {}
+    for c in LADDER:
+        assert "tier" in c and c["tier"] in range(5), c
+        for sk in c["expected_skills"]:
+            assert sk in skill_lib.SKILLS, (c["id"], sk)
+        tiers.setdefault(c["tier"], []).append(c["id"])
+    assert set(tiers) == {0, 1, 2, 3, 4}, tiers
+    assert all(len(v) >= 2 for v in tiers.values()), tiers
+    assert all(len(c["expected_skills"]) == 0 for c in LADDER if c["tier"] == 0)
+    assert all(len(c["expected_skills"]) == c["tier"] for c in LADDER if c["tier"] in (1, 2, 3))
+    assert all("hosting" in c["expected_skills"] for c in LADDER if c["tier"] == 4)
+    print(f"PASS: ladder has {len(LADDER)} prompts, at least two per tier 0-4")
+
+
+def test_cli_model_flag_names_the_arm_and_stamps_the_manifest():
+    from bench.run import main
+    out = Path(tempfile.mkdtemp())
+    rc = main(["--arm", "baseline", "--model", "claude-sonnet-5", "--corpus", "ladder",
+               "--repeats", "1", "--cases", "2", "--dry", "--out", str(out)])
+    assert rc == 0
+    assert (out / "baseline-claude-sonnet-5.jsonl").exists(), list(out.iterdir())
+    manifest = json.loads((out / "run.json").read_text())
+    assert manifest["model"] == "claude-sonnet-5" and manifest["corpus"] == "ladder", manifest
+    rows = [json.loads(l) for l in (out / "baseline-claude-sonnet-5.jsonl").read_text().splitlines() if l.strip()]
+    assert rows and all(r["tier"] == 0 for r in rows), rows
+    print("PASS: --model qualifies the arm file and lands in the manifest; --corpus ladder carries tier")
+
+
+def test_report_groups_by_tier():
+    from bench.report import by_tier
+    rows = [dict(_row("a", 0, llm_calls=1, llm_ms=100, total_ms=100, tokens_in=10, tokens_out=1,
+                      cost=0.0001, loaded=[]), tier=0),
+            dict(_row("b", 0, llm_calls=3, llm_ms=300, total_ms=300, tokens_in=30, tokens_out=3,
+                      cost=0.0003, loaded=["hosting"]), tier=4),
+            dict(_row("b", 1, llm_calls=5, llm_ms=500, total_ms=500, tokens_in=50, tokens_out=5,
+                      cost=0.0005, loaded=["hosting", "grilling"]), tier=4)]
+    t = by_tier(rows)
+    assert set(t) == {0, 4}
+    assert t[4]["n"] == 2 and t[4]["llm_calls"]["mean"] == 4.0
+    assert t[4]["skill_load_rate"] == 1.0 and t[0]["skill_load_rate"] == 0.0
+    assert t[4]["skills_per_turn"] == 1.5
+    print("PASS: by_tier groups rows and reports observed skill-load rate per rung")
 
 
 if __name__ == "__main__":
@@ -176,3 +225,6 @@ if __name__ == "__main__":
     test_report_summarizes_means_medians_and_outcomes()
     test_compare_reports_deltas_and_skill_agreement()
     test_cli_dry_run_end_to_end()
+    test_ladder_has_two_prompts_per_tier()
+    test_cli_model_flag_names_the_arm_and_stamps_the_manifest()
+    test_report_groups_by_tier()

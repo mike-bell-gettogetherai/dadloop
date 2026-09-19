@@ -56,6 +56,7 @@ def row_from_journal(events: list[dict], *, arm: str, case: dict, repeat: int) -
     return {
         "arm": arm, "case_id": case["id"], "prompt": case["prompt"],
         "expected_skills": list(case.get("expected_skills", [])), "repeat": repeat,
+        "tier": case.get("tier"),
         "session_id": any_event.get("session_id"), "turn_id": any_event.get("turn_id"),
         "llm_calls": trace.get("llm_calls"), "tool_calls": trace.get("tool_calls"),
         "tokens_in": trace.get("tokens_in"), "tokens_out": trace.get("tokens_out"),

@@ -22,13 +22,28 @@ from dadloop import AgentLoop, Context, SemanticMemory
 from dadloop.core.agent import _load_dotenv
 
 from .harness import run_arm
-from .prompts import CASES
+from .prompts import CASES, LADDER
+
+CORPORA = {"ladder": LADDER, "wide": CASES}
 
 ARMS: dict[str, object] = {}
 
 
 def _live_baseline(memory_root: Path) -> AgentLoop:
     return AgentLoop(Context(memory=SemanticMemory(memory_root)))
+
+
+def _with_model(make_agent, model: str | None):
+    """Pin the model per run. AgentLoop reads DADLOOP_MODEL at construction;
+    overriding the attribute after is the same knob without touching env."""
+    if not model:
+        return make_agent
+
+    def make(memory_root: Path) -> AgentLoop:
+        agent = make_agent(memory_root)
+        agent.model = model
+        return agent
+    return make
 
 
 def _dry_baseline(memory_root: Path) -> AgentLoop:
@@ -56,6 +71,8 @@ ARMS["baseline"] = _live_baseline
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--arm", required=True, choices=sorted(ARMS))
+    ap.add_argument("--model", default=None, help="model id; default DADLOOP_MODEL from .env")
+    ap.add_argument("--corpus", default="ladder", choices=sorted(CORPORA))
     ap.add_argument("--repeats", type=int, default=5)
     ap.add_argument("--cases", type=int, default=None, help="only the first N cases")
     ap.add_argument("--out", default=None, help="results dir; default bench/results/<timestamp>-<arm>")
@@ -63,19 +80,21 @@ def main(argv: list[str] | None = None) -> int:
     args = ap.parse_args(argv)
 
     _load_dotenv()
-    cases = CASES[: args.cases] if args.cases else CASES
+    corpus = CORPORA[args.corpus]
+    cases = corpus[: args.cases] if args.cases else corpus
+    model = args.model or os.environ.get("DADLOOP_MODEL", "claude-sonnet-5")
+    arm = f"{args.arm}-{model}"
     stamp = time.strftime("%Y%m%dT%H%M%SZ", time.gmtime())
-    out = Path(args.out) if args.out else Path("bench/results") / f"{stamp}-{args.arm}"
+    out = Path(args.out) if args.out else Path("bench/results") / f"{stamp}-{arm}"
     out.mkdir(parents=True, exist_ok=True)
 
-    make_agent = _dry_baseline if args.dry else ARMS[args.arm]
+    make_agent = _with_model(_dry_baseline if args.dry else ARMS[args.arm], model)
     if not args.dry and not os.environ.get("ANTHROPIC_API_KEY", "").strip():
         print("No ANTHROPIC_API_KEY; use --dry or put a key in .env.")
         return 2
 
-    manifest = {"arm": args.arm, "repeats": args.repeats, "cases": len(cases), "dry": args.dry,
-                "model": os.environ.get("DADLOOP_MODEL", "claude-sonnet-5"),
-                "started_at": stamp}
+    manifest = {"arm": arm, "base_arm": args.arm, "corpus": args.corpus, "repeats": args.repeats,
+                "cases": len(cases), "dry": args.dry, "model": model, "started_at": stamp}
     (out / "run.json").write_text(json.dumps(manifest, indent=1), encoding="utf-8")
 
     def show(row: dict) -> None:
@@ -83,7 +102,7 @@ def main(argv: list[str] | None = None) -> int:
               f"{row['llm_ms']:.0f}ms model  ${row['cost']:.4f}  "
               f"skills={row['loaded_skills']}  {row['outcome']}")
 
-    path = run_arm(args.arm, cases, repeats=args.repeats, make_agent=make_agent, out_dir=out, on_row=show)
+    path = run_arm(arm, cases, repeats=args.repeats, make_agent=make_agent, out_dir=out, on_row=show)
     print(f"\nwrote {path}")
     print(f"report: .venv/bin/python -m bench.report {path}")
     return 0

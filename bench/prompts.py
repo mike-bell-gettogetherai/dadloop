@@ -18,6 +18,36 @@ FROZEN_WORLD = {
     "budget": 40,
 }
 
+# The ladder: skill demand as the independent variable. `tier` is the demand
+# DESIGNED into the prompt; the harness records what Dad actually loads, and
+# the gap between the two is a finding, not an error. Hosting is the only skill
+# in the repo that composes others, so tier 4 is the only real cascade.
+LADDER = [
+    {"id": "t0-weather", "tier": 0, "prompt": "Morning. What's the weather for my run?",
+     "expected_skills": []},
+    {"id": "t0-wallet", "tier": 0, "prompt": "How much is in the wallet?",
+     "expected_skills": []},
+    {"id": "t1-thermo", "tier": 1, "prompt": "Set the thermostat to 74, I'm cold.",
+     "expected_skills": ["the-thermostat"]},
+    {"id": "t1-faucet", "tier": 1, "prompt": "The kitchen faucet is dripping again. Can you fix it?",
+     "expected_skills": ["fixing-things"]},
+    {"id": "t2-roadtrip", "tier": 2, "prompt": "Can we afford a road trip to the coast this summer?",
+     "expected_skills": ["money-decisions", "road-trips"]},
+    {"id": "t2-cold-kids", "tier": 2, "prompt": "It's cold and the kids are bored. Ideas?",
+     "expected_skills": ["the-thermostat", "teaching-kids-stuff"]},
+    {"id": "t3-cookout", "tier": 3,
+     "prompt": "Grilling for the neighbors Saturday, forty bucks to spend, and the lawn's a jungle. What's the order of operations?",
+     "expected_skills": ["grilling", "money-decisions", "yard-work"]},
+    {"id": "t3-snow-day", "tier": 3,
+     "prompt": "Six inches of snow, the kids are fighting over the one sled, and I need to get the driveway clear before work. Go.",
+     "expected_skills": ["snow-shoveling", "breaking-up-fights", "saying-no"]},
+    {"id": "t4-host", "tier": 4, "prompt": "I'm hosting a cookout Saturday. What do I do?",
+     "expected_skills": ["hosting", "money-decisions", "grilling", "yard-work"]},
+    {"id": "t4-twelve", "tier": 4, "prompt": "Twelve people Saturday, and I've got forty bucks. Are we set?",
+     "expected_skills": ["hosting", "money-decisions", "grilling", "yard-work"]},
+]
+
+# The wider sweep: one prompt per skill plus composition, ambiguity, and no-skill cases.
 CASES = [
     # --- one skill each -------------------------------------------------
     {"id": "grill-01", "prompt": "Can we grill for the cookout this Saturday?",

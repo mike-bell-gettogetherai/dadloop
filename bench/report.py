@@ -43,6 +43,22 @@ def summarize(rows: list[dict]) -> dict:
     return out
 
 
+def by_tier(rows: list[dict]) -> dict[int, dict]:
+    """Summary per designed tier, plus what was OBSERVED at that rung: the share
+    of turns that loaded any skill, and the mean number of distinct skills."""
+    grouped: dict[int, list[dict]] = defaultdict(list)
+    for r in rows:
+        if r.get("tier") is not None:
+            grouped[r["tier"]].append(r)
+    out = {}
+    for tier, rs in sorted(grouped.items()):
+        s = summarize(rs)
+        s["skill_load_rate"] = sum(1 for r in rs if r.get("loaded_skills")) / len(rs)
+        s["skills_per_turn"] = sum(len(r.get("loaded_skills", [])) for r in rs) / len(rs)
+        out[tier] = s
+    return out
+
+
 def _by_case(rows: list[dict]) -> dict[str, list[dict]]:
     grouped: dict[str, list[dict]] = defaultdict(list)
     for r in rows:
@@ -100,6 +116,17 @@ def print_summary(name: str, s: dict) -> None:
     print(f"{'cost total':<18}{_fmt(s['cost']['sum'], 4):>12}")
 
 
+def print_tiers(name: str, rows: list[dict]) -> None:
+    t = by_tier(rows)
+    if not t:
+        return
+    print(f"\n== {name} by designed tier   (n | llm_calls | llm_ms | cost | loaded any skill | skills/turn)")
+    for tier, s in t.items():
+        print(f"tier {tier}   n={s['n']:<3} {_fmt(s['llm_calls']['mean']):>5} calls "
+              f"{_fmt(s['llm_ms']['mean'], 0):>7}ms  ${_fmt(s['cost']['mean'], 4)}  "
+              f"loaded={s['skill_load_rate']:.0%}  skills/turn={s['skills_per_turn']:.1f}")
+
+
 def print_compare(c: dict) -> None:
     print("\n== per case: base -> other   (llm_calls | llm_ms | cost | skills jaccard)")
     for cid, e in c["per_case"].items():
@@ -119,9 +146,11 @@ def main(argv: list[str]) -> int:
         return 2
     base = load_rows(Path(argv[0]))
     print_summary(Path(argv[0]).stem, summarize(base))
+    print_tiers(Path(argv[0]).stem, base)
     if len(argv) > 1:
         other = load_rows(Path(argv[1]))
         print_summary(Path(argv[1]).stem, summarize(other))
+        print_tiers(Path(argv[1]).stem, other)
         print_compare(compare(base, other))
     return 0
 
