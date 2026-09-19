@@ -43,30 +43,68 @@ def _patch_system_prompt() -> None:
 _patch_system_prompt()
 
 
+DEFAULT_QUESTION = "Does handling this request require Dad's '{name}' playbook? Playbook: {description}"
+
+
+def expand(chosen: list[str], composes: dict[str, list[str]] | None) -> list[str]:
+    """Transitive closure over the composition map, in discovery order. The
+    selector finds entry points; this is the structural part it cannot see."""
+    if not composes:
+        return list(chosen)
+    out: list[str] = []
+    stack = list(chosen)
+    while stack:
+        n = stack.pop(0)
+        if n in out:
+            continue
+        out.append(n)
+        stack.extend(x for x in composes.get(n, []) if x not in out)
+    return out
+
+
 class Preselector:
-    """One system_one call with a Noul per skill; skills at or above `threshold` are chosen."""
+    """One system_one call with a Noul per skill; skills at or above `threshold`
+    are chosen, then expanded through `composes` (skill -> skills it loads).
+
+    `question` is the instruction template; it may use {name}, {description},
+    and, when `triggers` are given, {about}. `triggers` maps a skill to
+    selector-facing text: "about" (what the request is about), "true" and
+    "false" (Noul criteria: what counts and what does not). The Claude-facing
+    description is untouched either way."""
 
     def __init__(self, client, *, threshold: float = 0.5, model: str | None = None,
-                 clock: Callable[[], float] = time.perf_counter):
+                 clock: Callable[[], float] = time.perf_counter,
+                 question: str = DEFAULT_QUESTION, triggers: dict[str, dict] | None = None,
+                 composes: dict[str, list[str]] | None = None):
         self.client = client
         self.threshold = threshold
         self.model = model
         self.clock = clock
+        self.question = question
+        self.triggers = triggers or {}
+        self.composes = composes or {}
+
+    def _question(self, name: str, description: str):
+        from typesafe_sdk import Noul
+        trig = self.triggers.get(name, {})
+        text = self.question.format(name=name, description=description, about=trig.get("about", description))
+        criteria = None
+        if trig.get("true") or trig.get("false"):
+            criteria = {"true": trig.get("true"), "false": trig.get("false")}
+        return Noul(instructions=text, criteria=criteria)
 
     def select(self, prompt: str, names: list[str], descriptions: dict[str, str]) -> dict:
-        from typesafe_sdk import Noul
-        questions = {n: Noul(instructions=(f"Does handling this request require Dad's '{n}' playbook? "
-                                           f"Playbook: {descriptions.get(n, '')}"))
-                     for n in names}
+        questions = {n: self._question(n, descriptions.get(n, "")) for n in names}
         t0 = self.clock()
         kwargs = {"model": self.model} if self.model else {}
         resp = self.client.system_one(state={"request": prompt}, questions=questions, **kwargs)
         ms = (self.clock() - t0) * 1000
         probs = {n: float(getattr(resp.answers[n], "noul", 0.0)) for n in names}
-        chosen = [n for n, p in sorted(probs.items(), key=lambda kv: -kv[1]) if p >= self.threshold]
+        entry = [n for n, p in sorted(probs.items(), key=lambda kv: -kv[1]) if p >= self.threshold]
         usage = getattr(resp, "usage", None)
         return {
-            "chosen": chosen, "probs": probs, "threshold": self.threshold, "ms": round(ms, 1),
+            "chosen_entry": entry, "chosen": expand(entry, self.composes),
+            "probs": probs, "threshold": self.threshold, "ms": round(ms, 1),
             "calls": 1, "model": getattr(resp, "model", None),
             "tokens_in": int(getattr(usage, "input_tokens", 0) or 0),
             "tokens_out": int(getattr(usage, "output_tokens", 0) or 0),

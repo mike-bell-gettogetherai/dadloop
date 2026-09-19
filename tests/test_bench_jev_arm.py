@@ -84,7 +84,60 @@ def test_threshold_is_inclusive_at_half_and_excludes_below():
     print("PASS: threshold admits 0.50 and excludes 0.49")
 
 
+def _capturing_selector(probs: dict, **kw):
+    from bench.jev_arm import Preselector
+    seen = {}
+    class FakeTS:
+        def system_one(self, *, state, questions, **k):
+            seen["questions"] = questions
+            return NS(model="jev-fake", usage=NS(input_tokens=1, output_tokens=0),
+                      answers={q: NS(noul=probs.get(q, 0.01)) for q in questions})
+    return Preselector(FakeTS(), threshold=0.5, clock=lambda: 0.0, **kw), seen
+
+
+def test_expansion_follows_composition_after_selection():
+    sel, _ = _capturing_selector({"hosting": 0.9}, composes={"hosting": ["money-decisions", "grilling"], "grilling": ["grocery-runs"]})
+    out = sel.select("cookout", ["hosting", "money-decisions", "grilling", "grocery-runs", "bedtime"], {})
+    assert out["chosen_entry"] == ["hosting"], out
+    assert out["chosen"] == ["hosting", "money-decisions", "grilling", "grocery-runs"], "closure is transitive and ordered"
+    print("PASS: pre-selection picks entry points, code takes the transitive closure")
+
+
+def test_question_template_and_criteria_reach_jev():
+    sel, seen = _capturing_selector({}, question="Is this request about: {about}?",
+                                    triggers={"the-thermostat": {"about": "changing the temperature",
+                                                                 "true": "any ask to set or change the heat",
+                                                                 "false": "weather outside"}})
+    sel.select("cold", ["the-thermostat"], {"the-thermostat": "How Dad defends the thermostat."})
+    q = seen["questions"]["the-thermostat"]
+    assert "changing the temperature" in q.instructions and "defends" not in q.instructions, q.instructions
+    assert q.criteria == {"true": "any ask to set or change the heat", "false": "weather outside"}, q.criteria
+    print("PASS: the selector question is built from triggers, not the Claude-facing description")
+
+
+def test_composition_is_derived_from_skill_bodies():
+    from bench.triggers import composes_from_bodies
+    from dadloop.core import skills as skill_lib
+    m = composes_from_bodies(skill_lib.SKILLS)
+    assert set(m["hosting"]) == {"money-decisions", "grilling", "yard-work"}, m
+    assert all(k in skill_lib.SKILLS and all(v in skill_lib.SKILLS for v in vs) for k, vs in m.items())
+    print(f"PASS: composition map derived from the bodies: {dict(m)}")
+
+
+def test_triggers_cover_every_skill():
+    from bench.triggers import TRIGGERS
+    from dadloop.core import skills as skill_lib
+    assert set(TRIGGERS) == set(skill_lib.SKILLS), set(TRIGGERS) ^ set(skill_lib.SKILLS)
+    for n, t in TRIGGERS.items():
+        assert t["about"] and t["true"] and t["false"], n
+    print("PASS: every skill has selector-facing triggers with a positive and a negative")
+
+
 if __name__ == "__main__":
     test_chosen_bodies_reach_the_system_prompt_and_baseline_stays_clean()
     test_preselect_is_journaled_and_lands_on_the_row()
     test_threshold_is_inclusive_at_half_and_excludes_below()
+    test_expansion_follows_composition_after_selection()
+    test_question_template_and_criteria_reach_jev()
+    test_composition_is_derived_from_skill_bodies()
+    test_triggers_cover_every_skill()
