@@ -137,9 +137,12 @@ class SessionTotals:
 
 
 class Tracer:
+    """`sink(summary, root)` fires when a root span closes: the one-line
+    summary for humans, and the root span itself so a consumer can record
+    the numbers as numbers (see `trace_fields`) instead of parsing prose."""
     def __init__(self, sink=None):
         self._stack: list[Span] = []
-        self._sink = sink or (lambda summary: print(summary))
+        self._sink = sink or (lambda summary, root=None: print(summary))
         self.totals = SessionTotals()
 
     @contextmanager
@@ -156,13 +159,35 @@ class Tracer:
             self._stack.pop()
             if not self._stack:                 # root closed → summarize
                 self.totals.add(s)
-                self._sink(_summarize(s))
+                self._sink(_summarize(s), s)
 
 
 def _walk(span: Span):
     yield span
     for c in span.children:
         yield from _walk(c)
+
+
+def trace_fields(root: Span) -> dict:
+    """The turn's numbers as fields: what a benchmark or the console should
+    read, rather than regexing `_summarize`'s prose. Same spans, same sums."""
+    spans = list(_walk(root))
+    llm = [s for s in spans if s.name == "llm.call"]
+    dollars, unpriced = turn_cost(spans)
+    return {
+        "llm_calls": len(llm),
+        "tool_calls": sum(1 for s in spans if s.name == "tool.execute"),
+        "tokens_in": sum(s.attrs.get("tokens_in", 0) for s in llm),
+        "tokens_out": sum(s.attrs.get("tokens_out", 0) for s in llm),
+        "cache_read": sum(s.attrs.get("cache_read", 0) for s in llm),
+        "cache_write": sum(s.attrs.get("cache_write", 0) for s in llm),
+        "total_ms": round(root.ms, 1),
+        "llm_ms": round(sum(s.ms for s in llm), 1),
+        "tool_ms": round(sum(s.ms for s in spans if s.name == "tool.execute"), 1),
+        "cost": round(dollars, 6),
+        "unpriced_calls": unpriced,
+        "models": sorted({str(s.attrs.get("model")) for s in llm}),
+    }
 
 
 def _summarize(root: Span) -> str:

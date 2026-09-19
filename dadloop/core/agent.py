@@ -33,7 +33,7 @@ from pathlib import Path
 from .context import Context
 from . import tools as toolkit
 from .controller import Mom
-from .trace import Tracer
+from .trace import Tracer, trace_fields
 from .plan import Plan, parse_plan
 from . import journal as _journal
 from . import stages as _stages
@@ -304,12 +304,15 @@ class AgentLoop:
     def online(self) -> bool:
         return self._client is not None
 
-    def _emit_trace(self, summary: str) -> None:
+    def _emit_trace(self, summary: str, root=None) -> None:
         """Where the tracer's per-turn summary goes: an explicit sink if one was
         given, otherwise the current turn's event stream."""
         if self._trace_sink is not None:
             self._trace_sink(summary)
         else:
+            # The on_event payload stays the string every UI already renders;
+            # the numbers ride into the journal as fields beside it.
+            self._trace_fields = trace_fields(root) if root is not None else {}
             self._emit("trace", summary)
 
     # --- one user turn = one full tool-use loop --------------------------
@@ -368,8 +371,11 @@ class AgentLoop:
             jrnl = self.journal
             if jrnl is None:
                 return
+            fields = _journal_fields(kind, payload)
+            if kind == "trace":
+                fields.update(getattr(self, "_trace_fields", {}) or {})
             seq = jrnl.write({"session_id": self.session_id, "turn_id": turn_id,
-                              "tier": 1, "kind": kind, **_journal_fields(kind, payload)})
+                              "tier": 1, "kind": kind, **fields})
             for derived in machine.observe(kind, payload):
                 jrnl.write({"session_id": self.session_id, "turn_id": turn_id,
                             "tier": 2, "caused_by_seq": seq, **derived})
