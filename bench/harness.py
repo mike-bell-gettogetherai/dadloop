@@ -53,6 +53,7 @@ def row_from_journal(events: list[dict], *, arm: str, case: dict, repeat: int) -
              if e.get("kind") == "tool_call" and e.get("name") == "load_skill"]
     final = next((e.get("text", "") for e in events if e.get("kind") in ("final", "clarify")), "")
     any_event = events[0] if events else {}
+    pre = next((e for e in events if e.get("kind") == "preselect"), None)
     return {
         "arm": arm, "case_id": case["id"], "prompt": case["prompt"],
         "expected_skills": list(case.get("expected_skills", [])), "repeat": repeat,
@@ -72,6 +73,14 @@ def row_from_journal(events: list[dict], *, arm: str, case: dict, repeat: int) -
         # The loop's stuck path: it ran out of model calls while still asking
         # for tools, and returned the "wandered off" line instead of an answer.
         "hit_ceiling": (final or "").startswith("(Dad got distracted"),
+        # Pre-selection arm only; baseline rows carry the empty defaults.
+        "preselected": list(pre["chosen"]) if pre else [],
+        "preselect_probs": dict(pre["probs"]) if pre else {},
+        "preselect_calls": int(pre["calls"]) if pre else 0,
+        "preselect_ms": float(pre["ms"]) if pre else 0.0,
+        "preselect_tokens_in": int(pre.get("tokens_in", 0)) if pre else 0,
+        "preselect_tokens_out": int(pre.get("tokens_out", 0)) if pre else 0,
+        "preselect_model": pre.get("model") if pre else None,
     }
 
 

@@ -68,6 +68,28 @@ def _dry_baseline(memory_root: Path) -> AgentLoop:
 ARMS["baseline"] = _live_baseline
 
 
+def _live_jev(memory_root: Path) -> AgentLoop:
+    from typesafe_sdk import TypeSafeClient
+    from .jev_arm import JevAgent, Preselector
+    return JevAgent(Context(memory=SemanticMemory(memory_root)),
+                    preselector=Preselector(TypeSafeClient(), threshold=0.5))
+
+
+def _dry_jev(memory_root: Path) -> AgentLoop:
+    from .jev_arm import JevAgent, Preselector
+    class FakeTS:
+        def system_one(self, *, state, questions, **kw):
+            return NS(model="jev-fake", usage=NS(input_tokens=100, output_tokens=15),
+                      answers={k: NS(noul=0.9 if k == "the-thermostat" else 0.05) for k in questions})
+    dad = JevAgent(Context(memory=SemanticMemory(memory_root)), preselector=Preselector(FakeTS()))
+    dad._client = _dry_baseline(memory_root)._client
+    return dad
+
+
+ARMS["jev"] = _live_jev
+DRY = {"baseline": _dry_baseline, "jev": _dry_jev}
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--arm", required=True, choices=sorted(ARMS))
@@ -88,9 +110,12 @@ def main(argv: list[str] | None = None) -> int:
     out = Path(args.out) if args.out else Path("bench/results") / f"{stamp}-{arm}"
     out.mkdir(parents=True, exist_ok=True)
 
-    make_agent = _with_model(_dry_baseline if args.dry else ARMS[args.arm], model)
+    make_agent = _with_model(DRY[args.arm] if args.dry else ARMS[args.arm], model)
     if not args.dry and not os.environ.get("ANTHROPIC_API_KEY", "").strip():
         print("No ANTHROPIC_API_KEY; use --dry or put a key in .env.")
+        return 2
+    if not args.dry and args.arm == "jev" and not os.environ.get("TYPESAFE_API_KEY", "").strip():
+        print("No TYPESAFE_API_KEY; the jev arm needs one in .env.")
         return 2
 
     manifest = {"arm": arm, "base_arm": args.arm, "corpus": args.corpus, "repeats": args.repeats,
@@ -98,9 +123,10 @@ def main(argv: list[str] | None = None) -> int:
     (out / "run.json").write_text(json.dumps(manifest, indent=1), encoding="utf-8")
 
     def show(row: dict) -> None:
+        pre = f"  pre={row['preselected']} ({row['preselect_ms']:.0f}ms)" if row.get("preselect_calls") else ""
         print(f"{row['case_id']:<12} r{row['repeat']}  {row['llm_calls']} calls  "
               f"{row['llm_ms']:.0f}ms model  ${row['cost']:.4f}  "
-              f"skills={row['loaded_skills']}  {row['outcome']}")
+              f"skills={row['loaded_skills']}  {row['outcome']}{pre}")
 
     path = run_arm(arm, cases, repeats=args.repeats, make_agent=make_agent, out_dir=out, on_row=show)
     print(f"\nwrote {path}")
