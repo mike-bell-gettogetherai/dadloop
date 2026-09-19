@@ -20,7 +20,7 @@ from collections import Counter, defaultdict
 from pathlib import Path
 
 METRICS = ("llm_calls", "llm_ms", "total_ms", "tool_ms", "tokens_in", "tokens_out",
-           "cost", "load_skill_calls")
+           "cost", "load_skill_calls", "preselect_ms")
 
 
 def load_rows(path: Path) -> list[dict]:
