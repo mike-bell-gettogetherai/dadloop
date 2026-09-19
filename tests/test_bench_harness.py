@@ -262,6 +262,16 @@ def test_report_counts_ceiling_hits():
     print("PASS: summary reports the share of turns that hit the ceiling")
 
 
+def test_compare_counts_preselected_skills_as_in_play():
+    from bench.report import compare
+    base = [_row("a", 0, llm_calls=3, llm_ms=1, total_ms=1, tokens_in=1, tokens_out=1, cost=0.0, loaded=["hosting", "grilling"])]
+    other = [dict(_row("a", 0, llm_calls=1, llm_ms=1, total_ms=1, tokens_in=1, tokens_out=1, cost=0.0, loaded=[]),
+                  preselected=["hosting", "grilling"], load_skill_calls=0)]
+    c = compare(base, other)
+    assert c["per_case"]["a"]["skill_jaccard"] == 1.0, "pre-loaded bodies are in play even with zero load_skill calls"
+    print("PASS: a pre-selected skill counts toward the arm's skill set")
+
+
 if __name__ == "__main__":
     test_corpus_is_well_formed()
     test_harness_writes_one_row_per_case_and_repeat()
@@ -275,3 +285,4 @@ if __name__ == "__main__":
     test_stress_block_is_its_own_rung()
     test_row_marks_a_turn_that_hit_the_call_ceiling()
     test_report_counts_ceiling_hits()
+    test_compare_counts_preselected_skills_as_in_play()

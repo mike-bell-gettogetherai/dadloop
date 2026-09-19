@@ -68,9 +68,12 @@ def _by_case(rows: list[dict]) -> dict[str, list[dict]]:
 
 
 def _majority_skills(rows: list[dict]) -> set[str]:
-    """The skills loaded on more than half the repeats of one case."""
+    """The skills in play on more than half the repeats of one case: loaded via
+    load_skill, or pre-loaded by a selection arm (a body in the system prompt
+    is in play whether or not Dad also called the tool)."""
     n = len(rows)
-    counts = Counter(s for r in rows for s in r.get("loaded_skills", []))
+    counts = Counter(s for r in rows
+                     for s in set(r.get("loaded_skills", [])) | set(r.get("preselected", [])))
     return {s for s, c in counts.items() if c * 2 > n}
 
 
