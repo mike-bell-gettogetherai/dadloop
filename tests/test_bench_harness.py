@@ -158,9 +158,21 @@ def test_compare_reports_deltas_and_skill_agreement():
     print("PASS: per-case base/other means, Jaccard on loaded-skill sets, overall deltas")
 
 
+def test_cli_dry_run_end_to_end():
+    from bench.run import main
+    out = Path(tempfile.mkdtemp())
+    rc = main(["--arm", "baseline", "--repeats", "1", "--cases", "3", "--dry", "--out", str(out)])
+    assert rc == 0
+    rows = [json.loads(l) for l in (out / "baseline.jsonl").read_text().splitlines() if l.strip()]
+    assert len(rows) == 3 and all(r["llm_calls"] == 2 for r in rows), rows
+    assert (out / "run.json").exists(), "the run manifest records arm, repeats, model, and started_at"
+    print("PASS: --dry runs 3 cases offline end to end and writes the manifest")
+
+
 if __name__ == "__main__":
     test_corpus_is_well_formed()
     test_harness_writes_one_row_per_case_and_repeat()
     test_harness_resets_world_and_disables_live_search()
     test_report_summarizes_means_medians_and_outcomes()
     test_compare_reports_deltas_and_skill_agreement()
+    test_cli_dry_run_end_to_end()
